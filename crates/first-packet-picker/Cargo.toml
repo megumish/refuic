@@ -1,6 +1,6 @@
 [package]
 name = "first-packet-picker"
-version = "0.1.0"
+version = "0.1.1"
 author = "megumish <megumish@exploitouri.st>"
 edition = "2021"
 
