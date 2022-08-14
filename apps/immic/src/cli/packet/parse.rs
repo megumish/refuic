@@ -1,7 +1,7 @@
 use std::io::Read;
 
 use clap::Parser;
-use immic_common::QuicVersion;
+use immic_common::{EndpointType, QuicVersion};
 use immic_packet::{long, packet, LongHeaderPacket, Packet};
 use tracing::{info, instrument};
 
@@ -27,6 +27,13 @@ impl Cli {
 
         info!("packet into Long Header Packet format: {:?}", long);
 
+        let unprotected_long: LongHeaderPacket =
+            long::remove_protection(&long, &QuicVersion::Rfc9000, &EndpointType::Server)?;
+
+        info!(
+            "remove protection from long header packet: {:?}",
+            unprotected_long
+        );
         Ok(())
     }
 }

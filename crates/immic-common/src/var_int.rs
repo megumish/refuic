@@ -18,6 +18,20 @@ impl VarInt {
             panic!("unsupported size");
         }
     }
+
+    pub fn len(&self) -> usize {
+        if self.0 - (0b00 << 6) < (1 << 6) {
+            1
+        } else if self.0 - (0b01 << 14) < (1 << 14) {
+            2
+        } else if self.0 - (0b10 << 30) < (1 << 30) {
+            4
+        } else if self.0 - (0b11 << 62) < (1 << 62) {
+            8
+        } else {
+            panic!("unsupported size");
+        }
+    }
 }
 
 pub trait ReadVarInt: Read {

@@ -5,6 +5,10 @@ use immic_common::{QuicVersion, ReadVarInt};
 
 use super::{Packet, PacketTransformError};
 
+pub mod remove_protection;
+
+pub use remove_protection::remove_protection;
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct LongHeaderPacket {
     fixed_bit: bool,
