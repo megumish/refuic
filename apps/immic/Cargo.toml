@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 immic-packet = { path = "../../crates/immic-packet" }
+immic-common = { path = "../../crates/immic-common" }
 
 clap = { version = "3.2.16", features = ["derive"] }
 thiserror = "1.0"

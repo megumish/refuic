@@ -1,7 +1,8 @@
 use std::io::Read;
 
 use clap::Parser;
-use immic_packet::Packet;
+use immic_common::QuicVersion;
+use immic_packet::{long, packet, LongHeaderPacket, Packet};
 use tracing::{info, instrument};
 
 #[derive(Parser, Debug, PartialEq, Clone)]
@@ -18,9 +19,13 @@ impl Cli {
 
         info!("read from stdin: {:?}", buf);
 
-        let packet: Packet = buf.try_into()?;
+        let packet: Packet = packet::parse_from_bytes(buf)?;
 
         info!("input bytes into Packet format: {:?}", packet);
+
+        let long: LongHeaderPacket = long::parse_from_packet(packet, QuicVersion::Rfc9000)?;
+
+        info!("packet into Long Header Packet format: {:?}", long);
 
         Ok(())
     }

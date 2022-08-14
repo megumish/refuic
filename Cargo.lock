@@ -115,6 +115,7 @@ name = "immic"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "immic-common",
  "immic-packet",
  "thiserror",
  "tracing",
@@ -125,6 +126,7 @@ dependencies = [
 name = "immic-common"
 version = "0.1.0"
 dependencies = [
+ "byteorder",
  "tracing",
 ]
 
