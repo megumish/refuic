@@ -1,6 +1,6 @@
-use std::io::{Cursor, Read};
+use std::io::{Cursor, Read, Write};
 
-use byteorder::{NetworkEndian, ReadBytesExt};
+use byteorder::{NetworkEndian, ReadBytesExt, WriteBytesExt};
 
 pub struct VarInt(u64);
 
@@ -32,6 +32,20 @@ impl VarInt {
             panic!("unsupported size");
         }
     }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        if self.0 - (0b00 << 6) < (1 << 6) {
+            vec![self.0 as u8]
+        } else if self.0 - (0b01 << 14) < (1 << 14) {
+            (self.0 as u16).to_be_bytes().to_vec()
+        } else if self.0 - (0b10 << 30) < (1 << 30) {
+            (self.0 as u32).to_be_bytes().to_vec()
+        } else if self.0 - (0b11 << 62) < (1 << 62) {
+            (self.0 as u64).to_be_bytes().to_vec()
+        } else {
+            panic!("unsupported size");
+        }
+    }
 }
 
 pub trait ReadVarInt: Read {
@@ -53,6 +67,13 @@ pub trait ReadVarInt: Read {
 }
 
 impl<T> ReadVarInt for T where T: Read {}
+
+pub trait WriteVarInt: Write {
+    fn write_var_int(&mut self, var_int: VarInt) -> Result<usize, std::io::Error> {
+        let buf = var_int.to_vec();
+        self.write(&buf)
+    }
+}
 
 pub enum ParseError {
     UnexpectedEnd(usize),

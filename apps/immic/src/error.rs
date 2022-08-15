@@ -6,6 +6,8 @@ pub enum Error {
     PacketReadError(#[from] immic_packet::PacketReadError),
     #[error("packet transform error")]
     PacketTransformError(#[from] immic_packet::PacketTransformError),
+    #[error("long header packet transform error")]
+    LongHeaderPacketTransform(#[from] immic_packet::long::LongHeaderPacketTransform),
     #[error("remove protection from long header packet error")]
     RemoveProtectionFromLongHeaderError(
         #[from] immic_packet::long::remove_protection::RemoveProtectionError,

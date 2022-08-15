@@ -5,6 +5,7 @@ use immic_common::{QuicVersion, ReadVarInt};
 
 use super::{Packet, PacketTransformError};
 
+pub mod initial;
 pub mod remove_protection;
 
 pub use remove_protection::remove_protection;
@@ -97,4 +98,10 @@ pub fn parse_from_packet_v1(packet: Packet) -> Result<LongHeaderPacket, PacketTr
         source_connection_id,
         version_specific_data,
     })
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum LongHeaderPacketTransform {
+    #[error("std I/O error")]
+    StdIoErro(#[from] std::io::Error),
 }

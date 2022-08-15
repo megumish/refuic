@@ -1,4 +1,4 @@
-use std::io::{BufRead, Cursor};
+use std::io::{Cursor, Read};
 
 use immic_common::{EndpointType, QuicVersion, ReadVarInt};
 use immic_crypto::{
@@ -81,14 +81,17 @@ fn remove_protection_v1_for_initial(
         (key, iv, hp)
     };
 
-    let (packet_number_offset, remain_length) = {
+    let (packet_number_offset, remain_length, token_length, token) = {
         let mut input = Cursor::new(&packet.version_specific_data);
         let token_length = input.read_var_int()?;
-        input.consume(token_length.u64() as usize);
+        let mut token = vec![0; token_length.u64() as usize];
+        input.read_exact(&mut token)?;
         let remain_length = input.read_var_int()?;
         (
             token_length.len() + token_length.u64() as usize + remain_length.len(),
-            remain_length.u64() as usize,
+            remain_length,
+            token_length,
+            token,
         )
     };
 
@@ -98,6 +101,7 @@ fn remove_protection_v1_for_initial(
 
     let mask = aes_128_encrypt(&hp, sample);
 
+    let mut unprotected_packet = packet.clone();
     let unprotected_type_specific_half_byte = {
         let mut type_specific_half_byte = 0;
         type_specific_half_byte += (packet.type_specific_bits[0] as u8) << 3;
@@ -106,11 +110,16 @@ fn remove_protection_v1_for_initial(
         type_specific_half_byte += (packet.type_specific_bits[3] as u8) << 0;
         type_specific_half_byte ^ (mask[0] & 0b1111)
     };
+    {
+        let mut unprotected_type_specific_bits = [false; 4];
+        unprotected_type_specific_bits[0] = ((unprotected_type_specific_half_byte >> 3) & 1) == 1;
+        unprotected_type_specific_bits[1] = ((unprotected_type_specific_half_byte >> 2) & 1) == 1;
+        unprotected_type_specific_bits[2] = ((unprotected_type_specific_half_byte >> 1) & 1) == 1;
+        unprotected_type_specific_bits[3] = ((unprotected_type_specific_half_byte >> 0) & 1) == 1;
+        unprotected_packet.type_specific_bits = unprotected_type_specific_bits;
+    }
 
     let packet_number_length = ((unprotected_type_specific_half_byte & 0b0011) as usize) + 1;
-    eprintln!("{}", packet_number_length);
-
-    let mut unprotected_packet = packet.clone();
 
     let packet_number_bytes = unprotected_packet
         .version_specific_data
@@ -128,10 +137,6 @@ fn remove_protection_v1_for_initial(
         .version_specific_data
         .get(packet_number_offset..packet_number_offset + packet_number_length)
         .ok_or(RemoveProtectionError::UnexpectedEnd)?;
-    assert_ne!(
-        unprotected_packet.version_specific_data,
-        packet.version_specific_data,
-    );
 
     let nonce = std::iter::repeat(&0)
         .take(iv.len() - packet_number_length)
@@ -160,18 +165,25 @@ fn remove_protection_v1_for_initial(
                 [0..version_specific_data_offset + packet_number_offset + packet_number_length]
                 .to_owned(),
             packet_header
-                [version_specific_data_offset + packet_number_offset + packet_number_length..version_specific_data_offset + packet_number_offset + remain_length]
+                [version_specific_data_offset + packet_number_offset + packet_number_length..version_specific_data_offset + packet_number_offset + remain_length.u64() as usize]
                 .to_owned(),
         )
     };
 
-    eprintln!(
-        "packet_header: {:?}\n packet_payload: {:?}\n",
-        &packet_header, &packet_payload
-    );
     let decrypted_payload = aes_128_gcm_decrypt(&key, &nonce, &packet_header, &packet_payload)?;
 
-    unprotected_packet.version_specific_data = decrypted_payload;
+    unprotected_packet.version_specific_data = {
+        let token_length_bytes = token_length.to_vec();
+        let remain_length_bytes = remain_length.to_vec();
+        [
+            &token_length_bytes[..],
+            &token[..],
+            &remain_length_bytes[..],
+            &packet_number_bytes[..],
+            &decrypted_payload[..],
+        ]
+        .concat()
+    };
 
     Ok(unprotected_packet)
 }

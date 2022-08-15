@@ -2,7 +2,10 @@ use std::io::Read;
 
 use clap::Parser;
 use immic_common::{EndpointType, QuicVersion};
-use immic_packet::{long, packet, LongHeaderPacket, Packet};
+use immic_packet::{
+    long::{self, initial::InitialPacket},
+    packet, LongHeaderPacket, Packet,
+};
 use tracing::{info, instrument};
 
 #[derive(Parser, Debug, PartialEq, Clone)]
@@ -34,6 +37,15 @@ impl Cli {
             "remove protection from long header packet: {:?}",
             unprotected_long
         );
+
+        let initial: InitialPacket =
+            long::initial::parse_from_long(&unprotected_long, &QuicVersion::Rfc9000)?;
+
+        info!(
+            "long header packet into Initial Packet format: {:?}",
+            initial
+        );
+
         Ok(())
     }
 }
