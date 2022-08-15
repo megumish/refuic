@@ -2,7 +2,7 @@ use std::io::{Cursor, Read};
 
 use immic_common::{QuicVersion, ReadVarInt};
 
-use crate::{packet, LongHeaderPacket};
+use crate::LongHeaderPacket;
 
 use super::LongHeaderPacketTransform;
 
