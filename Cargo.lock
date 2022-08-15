@@ -252,6 +252,7 @@ dependencies = [
  "immic-common",
  "immic-frame",
  "immic-packet",
+ "immic-tls",
  "serde_json",
  "thiserror",
  "tracing",
@@ -291,6 +292,14 @@ dependencies = [
  "byteorder",
  "immic-common",
  "immic-crypto",
+ "thiserror",
+]
+
+[[package]]
+name = "immic-tls"
+version = "0.1.0"
+dependencies = [
+ "byteorder",
  "thiserror",
 ]
 

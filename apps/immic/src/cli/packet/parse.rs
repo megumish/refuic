@@ -51,6 +51,20 @@ impl Cli {
 
         info!("initial packet payload into frames: {:?}", frames);
 
+        let crypto_data: Vec<u8> = frame::crypto::crypto_data(&frames)?;
+        let client_hello_data = immic_tls::handshake::client_hello::parse_from_bytes(&crypto_data)?;
+
+        info!(
+            "frames crypto data into tls handshake client hello data format: {:?}",
+            client_hello_data
+        );
+
+        info!(
+            "crypto data length: {:?}, actual total length: {:?}",
+            crypto_data.len(),
+            client_hello_data.total_length
+        );
+
         Ok(())
     }
 }

@@ -9,6 +9,7 @@ edition = "2021"
 immic-packet = { path = "../../crates/immic-packet" }
 immic-frame = { path  = "../../crates/immic-frame" }
 immic-common = { path = "../../crates/immic-common" }
+immic-tls = { path = "../../crates/immic-tls" }
 
 clap = { version = "3.2.16", features = ["derive"] }
 thiserror = "1.0"

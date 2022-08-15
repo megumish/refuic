@@ -14,6 +14,10 @@ pub enum Error {
     ),
     #[error("parse frame error")]
     ParseFrameError(#[from] immic_frame::frame::ParseFrameError),
+    #[error("crypto data error")]
+    CryptoDataError(#[from] immic_frame::frame::crypto::CryptoDataError),
+    #[error("handshake transform error")]
+    HandshakeTransformError(#[from] immic_tls::handshake::HandshakeTransformError),
     #[error("serde json error")]
     SerdeJsonError(#[from] serde_json::Error),
 }
