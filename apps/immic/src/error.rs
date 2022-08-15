@@ -12,4 +12,8 @@ pub enum Error {
     RemoveProtectionFromLongHeaderError(
         #[from] immic_packet::long::remove_protection::RemoveProtectionError,
     ),
+    #[error("parse frame error")]
+    ParseFrameError(#[from] immic_frame::frame::ParseFrameError),
+    #[error("serde json error")]
+    SerdeJsonError(#[from] serde_json::Error),
 }

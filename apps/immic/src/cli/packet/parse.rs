@@ -2,6 +2,7 @@ use std::io::Read;
 
 use clap::Parser;
 use immic_common::{EndpointType, QuicVersion};
+use immic_frame::frame::{self, Frame};
 use immic_packet::{
     long::{self, initial::InitialPacket},
     packet, LongHeaderPacket, Packet,
@@ -45,6 +46,10 @@ impl Cli {
             "long header packet into Initial Packet format: {:?}",
             initial
         );
+
+        let frames: Vec<Frame> = frame::parse_from_bytes(initial.payload(), &QuicVersion::Rfc9000)?;
+
+        info!("initial packet payload into frames: {:?}", frames);
 
         Ok(())
     }

@@ -11,6 +11,14 @@ pub enum InitialPacket {
     Rfc9000(InitialPacketRfc9000),
 }
 
+impl InitialPacket {
+    pub fn payload<'a>(&'a self) -> &'a Vec<u8> {
+        match self {
+            Self::Rfc9000(p) => p.payload(),
+        }
+    }
+}
+
 pub fn parse_from_long(
     long: &LongHeaderPacket,
     version: &QuicVersion,
@@ -30,6 +38,12 @@ pub struct InitialPacketRfc9000 {
     token: Vec<u8>,
     packet_number: u32,
     payload: Vec<u8>,
+}
+
+impl InitialPacketRfc9000 {
+    fn payload<'a>(&'a self) -> &'a Vec<u8> {
+        &self.payload
+    }
 }
 
 pub fn parse_from_long_v1(
