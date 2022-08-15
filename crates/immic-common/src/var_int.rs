@@ -1,6 +1,6 @@
 use std::io::{Cursor, Read, Write};
 
-use byteorder::{NetworkEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{NetworkEndian, ReadBytesExt};
 
 pub struct VarInt(u64);
 
