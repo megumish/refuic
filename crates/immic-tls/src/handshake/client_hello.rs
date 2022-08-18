@@ -8,12 +8,12 @@ use super::HandshakeTransformError;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ClientHelloData {
-    length: usize,
-    random: [u8; 32],
-    legacy_session_id: Vec<u8>,
-    cipher_suites: Vec<[u8; 2]>,
-    legacy_compression_method: Vec<u8>,
-    extensions: Vec<Extension>,
+    pub(crate) length: usize,
+    pub(crate) random: [u8; 32],
+    pub(crate) legacy_session_id: Vec<u8>,
+    pub(crate) cipher_suites: Vec<[u8; 2]>,
+    pub(crate) legacy_compression_method: Vec<u8>,
+    pub(crate) extensions: Vec<Extension>,
     pub total_length: usize,
 }
 

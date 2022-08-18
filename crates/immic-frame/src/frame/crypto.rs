@@ -1,6 +1,6 @@
 use std::io::{Cursor, Read};
 
-use immic_common::ReadVarInt;
+use immic_common::{var_int::VarInt, ReadVarInt};
 
 use super::ParseFrameError;
 
@@ -8,6 +8,26 @@ use super::ParseFrameError;
 pub struct Frame {
     offset: usize,
     crypto_data: Vec<u8>,
+}
+
+impl Frame {
+    pub fn new(crypto_data: Vec<u8>) -> super::Frame {
+        super::Frame::Crypto(Self {
+            offset: 0,
+            crypto_data,
+        })
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let offset = VarInt::try_new(self.offset as u64).unwrap();
+        let crypto_data_length = VarInt::try_new(self.crypto_data.len() as u64).unwrap();
+        [
+            offset.to_vec(),
+            crypto_data_length.to_vec(),
+            self.crypto_data.clone(),
+        ]
+        .concat()
+    }
 }
 
 pub fn read_crypto_frame(input: &mut Cursor<&[u8]>) -> Result<Frame, ParseFrameError> {

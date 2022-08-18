@@ -4,6 +4,7 @@ use immic_common::{var_int::VarInt, EndpointType, QuicVersion, ReadVarInt};
 use immic_crypto::{
     aes_128_encrypt, aes_128_gcm_encrypt, aes_128_gcm_encrypted_len, aes_128_gcm_key_len,
 };
+use immic_tls::handshake::{client_hello::ClientHelloData, server_hello::ServerHelloData};
 use rand::{rngs::StdRng, RngCore, SeedableRng};
 
 use crate::packet::get_key_iv_hp_v1;
@@ -25,9 +26,9 @@ impl InitialPacket {
         }
     }
 
-    pub fn server_initial(&self) -> InitialPacket {
+    pub fn server_initial(&self, client_hello_data: &ClientHelloData, key: &[u8]) -> InitialPacket {
         match self {
-            Self::Rfc9000(p) => p.server_initial(),
+            Self::Rfc9000(p) => p.server_initial(client_hello_data, key),
         }
     }
 
@@ -74,7 +75,7 @@ impl InitialPacketRfc9000 {
         &self.payload
     }
 
-    fn server_initial(&self) -> InitialPacket {
+    fn server_initial(&self, client_hello_data: &ClientHelloData, key: &[u8]) -> InitialPacket {
         let mut random_generator = StdRng::from_entropy();
 
         let source_connection_id = if self.destination_connection_id.is_empty() {
@@ -103,7 +104,13 @@ impl InitialPacketRfc9000 {
         // らしいので、とりあえずパケットごとに一つずつ増やしてみる
         let packet_number = self.packet_number + 1;
 
-        let payload = vec![0; 1200];
+        let payload = {
+            let tls_server_hello = ServerHelloData::new(client_hello_data, key);
+            let crypto_frame = immic_frame::frame::crypto::Frame::new(tls_server_hello.to_vec());
+            let mut payload = crypto_frame.to_vec();
+            payload.extend(vec![0u8; 1200 - payload.len()]);
+            payload
+        };
 
         InitialPacket::Rfc9000(Self {
             reserved_bits,

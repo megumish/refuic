@@ -1,6 +1,6 @@
 use std::io::Cursor;
 
-use immic_common::{QuicVersion, ReadVarInt};
+use immic_common::{var_int::VarInt, QuicVersion, ReadVarInt};
 
 use self::crypto::read_crypto_frame;
 
@@ -45,6 +45,18 @@ pub enum Frame {
     ConnectionClose(connection_close::Frame),
     HandshakeDone,
     Extension(u64),
+}
+
+impl Frame {
+    pub fn to_vec(&self) -> Vec<u8> {
+        match self {
+            Self::Crypto(f) => {
+                let frame_type = VarInt::try_new(6).unwrap();
+                [frame_type.to_vec(), f.to_vec()].concat()
+            }
+            _ => unimplemented!(),
+        }
+    }
 }
 
 pub fn parse_from_bytes(

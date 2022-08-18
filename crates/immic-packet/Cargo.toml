@@ -8,6 +8,8 @@ edition = "2021"
 [dependencies]
 immic-common = { path = "../immic-common" }
 immic-crypto = { path = "../immic-crypto" }
+immic-frame = { path = "../immic-frame" }
+immic-tls = { path = "../immic-tls" }
 
 thiserror = "1.0"
 byteorder = "1.4"
