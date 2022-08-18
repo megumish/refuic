@@ -16,6 +16,8 @@ pub enum Error {
     ParseFrameError(#[from] immic_frame::frame::ParseFrameError),
     #[error("crypto data error")]
     CryptoDataError(#[from] immic_frame::frame::crypto::CryptoDataError),
+    #[error("long header packet protection error")]
+    LongHeaderPacketProtectError(#[from] immic_packet::long::ProtectError),
     #[error("handshake transform error")]
     HandshakeTransformError(#[from] immic_tls::handshake::HandshakeTransformError),
     #[error("serde json error")]

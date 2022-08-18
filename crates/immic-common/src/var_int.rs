@@ -2,6 +2,7 @@ use std::io::{Cursor, Read, Write};
 
 use byteorder::{NetworkEndian, ReadBytesExt};
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct VarInt(u64);
 
 impl VarInt {
@@ -46,6 +47,20 @@ impl VarInt {
             panic!("unsupported size");
         }
     }
+
+    pub fn try_new(u: u64) -> Result<Self, NewVarIntError> {
+        Ok(if u < (1 << 6) {
+            Self(u)
+        } else if u < (1 << 14) {
+            Self((0b01 << 14) + u)
+        } else if u < (1 << 30) {
+            Self((0b10 << 30) + u)
+        } else if u < (1 << 62) {
+            Self((0b11 << 62) + u)
+        } else {
+            return Err(NewVarIntError::UnsupportedSize);
+        })
+    }
 }
 
 pub trait ReadVarInt: Read {
@@ -75,6 +90,8 @@ pub trait WriteVarInt: Write {
     }
 }
 
-pub enum ParseError {
-    UnexpectedEnd(usize),
+#[derive(thiserror::Error, Debug)]
+pub enum NewVarIntError {
+    #[error("unsupported size")]
+    UnsupportedSize,
 }

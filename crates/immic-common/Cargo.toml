@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 tracing = "0.1"
 byteorder = "1.4"
+thiserror = "1.0"

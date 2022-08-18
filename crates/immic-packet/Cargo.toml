@@ -8,5 +8,7 @@ edition = "2021"
 [dependencies]
 immic-common = { path = "../immic-common" }
 immic-crypto = { path = "../immic-crypto" }
+
 thiserror = "1.0"
 byteorder = "1.4"
+rand = { version = "0.8", features = ["std_rng"] }

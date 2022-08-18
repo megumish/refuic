@@ -23,11 +23,11 @@ impl Cli {
 
         info!("read from stdin: {:?}", buf);
 
-        let packet: Packet = packet::parse_from_bytes(buf)?;
+        let packet: Packet = packet::parse_from_bytes(&buf)?;
 
         info!("input bytes into Packet format: {:?}", packet);
 
-        let long: LongHeaderPacket = long::parse_from_packet(packet, QuicVersion::Rfc9000)?;
+        let long: LongHeaderPacket = long::parse_from_packet(packet, &QuicVersion::Rfc9000)?;
 
         info!("packet into Long Header Packet format: {:?}", long);
 

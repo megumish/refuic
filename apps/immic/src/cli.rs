@@ -4,6 +4,7 @@ use tracing::instrument;
 use crate::error::Error;
 
 mod packet;
+mod server;
 mod var_int;
 
 #[derive(Parser, Debug, PartialEq, Clone)]
@@ -17,6 +18,7 @@ pub struct Cli {
 pub enum Commands {
     /// parsing packets
     Packet(packet::Cli),
+    Server(server::Cli),
     VarInt(var_int::Cli),
 }
 
@@ -26,6 +28,7 @@ impl Commands {
         match self {
             Commands::Packet(cli) => cli.command.run(),
             Commands::VarInt(cli) => cli.run(),
+            Commands::Server(cli) => cli.run(),
         }
     }
 }

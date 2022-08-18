@@ -2,12 +2,10 @@ use std::io::{Cursor, Read};
 
 use immic_common::{EndpointType, QuicVersion, ReadVarInt};
 use immic_crypto::{
-    aes_128_encrypt, aes_128_gcm_decrypt, aes_128_gcm_key_len,
-    hkdf_expand_label::{
-        hkdf_expand_label_sha256_aes_gcm_128_iv_len, hkdf_expand_label_sha256_aes_gcm_128_key_len,
-    },
-    hkdf_expand_label_sha256_sha256_len, hkdf_extract_sha256, Aes128GcmDecryptError,
+    aes_128_encrypt, aes_128_gcm_decrypt, aes_128_gcm_key_len, Aes128GcmDecryptError,
 };
+
+use crate::{long::type_specific_bits_to_half_byte, packet::get_key_iv_hp_v1};
 
 use super::{LongHeaderPacket, LongPacketType};
 
@@ -36,10 +34,7 @@ fn remove_protection_v1_for_initial(
     packet: &LongHeaderPacket,
     endpoint_type: &EndpointType,
 ) -> Result<LongHeaderPacket, RemoveProtectionError> {
-    let initial_salt = [
-        0x38, 0x76, 0x2c, 0xf7, 0xf5, 0x59, 0x34, 0xb3, 0x4d, 0x17, 0x9a, 0xe6, 0xa4, 0xc8, 0x0c,
-        0xad, 0xcc, 0xbb, 0x7f, 0x0a,
-    ];
+    let initial_salt = QuicVersion::Rfc9000.initial_salt();
 
     let (key, iv, hp) = {
         let (label, client_destination_connection_id) = match endpoint_type {
@@ -55,30 +50,7 @@ fn remove_protection_v1_for_initial(
             }
         };
 
-        let initial_secret = hkdf_extract_sha256(&initial_salt, client_destination_connection_id);
-
-        let endpoint_initial_secret =
-            hkdf_expand_label_sha256_sha256_len(&initial_secret, label, &[]);
-
-        let key = hkdf_expand_label_sha256_aes_gcm_128_key_len(
-            &endpoint_initial_secret,
-            "quic key".as_bytes(),
-            &[],
-        );
-
-        let iv = hkdf_expand_label_sha256_aes_gcm_128_iv_len(
-            &endpoint_initial_secret,
-            "quic iv".as_bytes(),
-            &[],
-        );
-
-        let hp = hkdf_expand_label_sha256_aes_gcm_128_key_len(
-            &endpoint_initial_secret,
-            "quic hp".as_bytes(),
-            &[],
-        );
-
-        (key, iv, hp)
+        get_key_iv_hp_v1(label, client_destination_connection_id, &initial_salt)
     };
 
     let (packet_number_offset, remain_length, token_length, token) = {
@@ -103,11 +75,7 @@ fn remove_protection_v1_for_initial(
 
     let mut unprotected_packet = packet.clone();
     let unprotected_type_specific_half_byte = {
-        let mut type_specific_half_byte = 0;
-        type_specific_half_byte += (packet.type_specific_bits[0] as u8) << 3;
-        type_specific_half_byte += (packet.type_specific_bits[1] as u8) << 2;
-        type_specific_half_byte += (packet.type_specific_bits[2] as u8) << 1;
-        type_specific_half_byte += (packet.type_specific_bits[3] as u8) << 0;
+        let type_specific_half_byte = type_specific_bits_to_half_byte(packet.type_specific_bits);
         type_specific_half_byte ^ (mask[0] & 0b1111)
     };
     {
@@ -138,6 +106,8 @@ fn remove_protection_v1_for_initial(
         .get(packet_number_offset..packet_number_offset + packet_number_length)
         .ok_or(RemoveProtectionError::UnexpectedEnd)?;
 
+    // https://www.rfc-editor.org/rfc/rfc9001#section-5.3-5
+    // nonce は iv と packet number bytes の XOR で作られる
     let nonce = std::iter::repeat(&0)
         .take(iv.len() - packet_number_length)
         .chain(packet_number_bytes.iter())
@@ -151,7 +121,6 @@ fn remove_protection_v1_for_initial(
             + ((packet.fixed_bit as u8) << 6)
             + (0 << 4)
             + unprotected_type_specific_half_byte;
-        println!("{}", first_byte);
         packet_header.push(first_byte);
         packet_header.extend(packet.version.to_bytes());
         packet_header.push(packet.destination_connection_id.len() as u8);
