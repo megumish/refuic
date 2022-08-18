@@ -107,7 +107,10 @@ impl InitialPacketRfc9000 {
         let payload = {
             let tls_server_hello = ServerHelloData::new(client_hello_data, key);
             let crypto_frame = immic_frame::frame::crypto::Frame::new(tls_server_hello.to_vec());
-            let mut payload = crypto_frame.to_vec();
+            let ack_frame = immic_frame::frame::ack::Frame::new(packet_number - 1);
+            let mut payload = Vec::new();
+            payload.extend(crypto_frame.to_vec());
+            payload.extend(ack_frame.to_vec());
             payload.extend(vec![0u8; 1200 - payload.len()]);
             payload
         };

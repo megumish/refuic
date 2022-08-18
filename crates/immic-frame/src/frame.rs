@@ -54,6 +54,10 @@ impl Frame {
                 let frame_type = VarInt::try_new(6).unwrap();
                 [frame_type.to_vec(), f.to_vec()].concat()
             }
+            Self::Ack(f) => {
+                let frame_type = f.frame_type();
+                [frame_type.to_vec(), f.to_vec()].concat()
+            }
             _ => unimplemented!(),
         }
     }
