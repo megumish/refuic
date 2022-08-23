@@ -1,6 +1,8 @@
+pub mod hash;
 mod hkdf_expand;
 pub mod hkdf_expand_label;
 pub mod hkdf_extract;
+pub mod hmac;
 
 use aes_gcm::{
     aead::{self, generic_array::GenericArray, Aead},

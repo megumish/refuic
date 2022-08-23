@@ -2,7 +2,10 @@ use std::io::{Cursor, Read};
 
 use byteorder::{NetworkEndian, ReadBytesExt};
 
-use crate::extension::{read_extensions, Extension};
+use crate::{
+    cipher_suite::CipherSuite,
+    extension::{read_extensions, Extension},
+};
 
 use super::HandshakeTransformError;
 
@@ -11,10 +14,49 @@ pub struct ClientHelloData {
     pub(crate) length: usize,
     pub(crate) random: [u8; 32],
     pub(crate) legacy_session_id: Vec<u8>,
-    pub(crate) cipher_suites: Vec<[u8; 2]>,
+    pub(crate) cipher_suites: Vec<CipherSuite>,
     pub(crate) legacy_compression_method: Vec<u8>,
     pub(crate) extensions: Vec<Extension>,
     pub total_length: usize,
+}
+
+impl ClientHelloData {
+    pub fn to_vec(&self) -> Vec<u8> {
+        let message_type = 1u8;
+        let length_bytes = {
+            let mut buf = Vec::new();
+            for i in 0..3usize {
+                buf.push(((self.length >> (3 - (i + 1)) * 8) & 0xff) as u8)
+            }
+            buf
+        };
+        let legacy_version = [0x03, 0x03];
+        let extensions_bytes = self
+            .extensions
+            .iter()
+            .flat_map(Extension::to_vec)
+            .collect::<Vec<u8>>();
+        let cipher_suites_bytes = self
+            .cipher_suites
+            .iter()
+            .flat_map(CipherSuite::to_vec)
+            .collect::<Vec<u8>>();
+        [
+            &[message_type],
+            &length_bytes[..],
+            &legacy_version,
+            &self.random,
+            &(self.legacy_session_id.len() as u8).to_be_bytes(),
+            &self.legacy_session_id,
+            &(cipher_suites_bytes.len() as u16).to_be_bytes(),
+            &cipher_suites_bytes[..],
+            &(self.legacy_compression_method.len() as u8).to_be_bytes(),
+            &self.legacy_compression_method[..],
+            &(extensions_bytes.len() as u16).to_be_bytes(),
+            &extensions_bytes[..],
+        ]
+        .concat()
+    }
 }
 
 pub fn parse_from_bytes(bytes: &[u8]) -> Result<ClientHelloData, HandshakeTransformError> {
@@ -69,7 +111,7 @@ pub fn parse_from_bytes(bytes: &[u8]) -> Result<ClientHelloData, HandshakeTransf
             vec.push(buf);
         }
         actual_remain_length += 2 + length as usize;
-        vec
+        vec.iter().map(|x| CipherSuite::from_bytes(x)).collect()
     };
 
     let legacy_compression_method = {

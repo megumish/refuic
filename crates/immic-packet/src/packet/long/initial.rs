@@ -4,12 +4,21 @@ use immic_common::{var_int::VarInt, EndpointType, QuicVersion, ReadVarInt};
 use immic_crypto::{
     aes_128_encrypt, aes_128_gcm_encrypt, aes_128_gcm_encrypted_len, aes_128_gcm_key_len,
 };
-use immic_tls::handshake::{client_hello::ClientHelloData, server_hello::ServerHelloData};
+use immic_tls::{
+    cipher_suite::CipherSuite,
+    handshake::{
+        certificate::Certificate, certificate_verify::CertificateVerify,
+        client_hello::ClientHelloData, encrypted_extensions::EncryptedExtensions,
+        finished::Finished, server_hello::ServerHelloData,
+    },
+    signature_scheme::SignatureScheme,
+};
 use rand::{rngs::StdRng, RngCore, SeedableRng};
 
 use crate::packet::get_key_iv_hp_v1;
 
 use super::{
+    handshake::{HandshakePacket, HandshakePacketRfc9000},
     type_specific_bits_to_half_byte, type_specific_half_byte_to_bits, LongHeaderPacket,
     LongHeaderPacketTransform, ProtectError,
 };
@@ -35,6 +44,23 @@ impl InitialPacket {
     pub fn protect(&self, endpoint_type: &EndpointType) -> Result<LongHeaderPacket, ProtectError> {
         match self {
             Self::Rfc9000(p) => p.protect(endpoint_type),
+        }
+    }
+
+    pub fn handshake_server(
+        &self,
+        cert_signature_scheme: &SignatureScheme,
+        cert_signature: &[u8],
+        ch_to_sh_message: &[u8],
+        cipher_suite: &CipherSuite,
+    ) -> HandshakePacket {
+        match self {
+            Self::Rfc9000(p) => p.server_handshake(
+                cert_signature_scheme,
+                cert_signature,
+                ch_to_sh_message,
+                cipher_suite,
+            ),
         }
     }
 }
@@ -75,6 +101,7 @@ impl InitialPacketRfc9000 {
         &self.payload
     }
 
+    // clientで生成されたInitial PacketからServer Initial Packetを生成することを暗黙的に仮定している。
     fn server_initial(&self, client_hello_data: &ClientHelloData, key: &[u8]) -> InitialPacket {
         let mut random_generator = StdRng::from_entropy();
 
@@ -123,6 +150,67 @@ impl InitialPacketRfc9000 {
             token,
             packet_number,
             payload,
+        })
+    }
+
+    // serverで生成されたInitial PacketからHandshakeを生成することを暗黙的に仮定している。
+    fn server_handshake(
+        &self,
+        cert_signature_scheme: &SignatureScheme,
+        cert_signature: &[u8],
+        ch_to_sh_message: &[u8],
+        cipher_suite: &CipherSuite,
+    ) -> HandshakePacket {
+        // https://www.rfc-editor.org/rfc/rfc9000.html#section-17.2-8.2.1
+        // The value included prior to protection MUST be set to 0
+        // プロテクションされる前の値は0でなければならない
+        let reserved_bits = [false, false];
+        // ここでversionをClient Initial Packetからとってるのは不適切かもしれない
+        let version = self.version.clone();
+
+        // https://www.rfc-editor.org/rfc/rfc9000.html#section-12.3-10
+        // A QUIC endpoint MUST NOT reuse a packet number within the same packet number space in one connection.
+        // らしいので、とりあえずパケットごとに一つずつ増やしてみる
+        let payload = {
+            let mut payload = Vec::new();
+            {
+                let encrypted_extensions = EncryptedExtensions::new();
+                let crypto_frame =
+                    immic_frame::frame::crypto::Frame::new(encrypted_extensions.to_vec());
+                payload.extend(crypto_frame.to_vec());
+            }
+            {
+                let certificate = Certificate::new();
+                let crypto_frame = immic_frame::frame::crypto::Frame::new(certificate.to_vec());
+                payload.extend(crypto_frame.to_vec());
+
+                let certificate_verify =
+                    CertificateVerify::new(cert_signature_scheme, cert_signature);
+                let crypto_frame =
+                    immic_frame::frame::crypto::Frame::new(certificate_verify.to_vec());
+                payload.extend(crypto_frame.to_vec());
+
+                let finished = Finished::new_server(
+                    b"",
+                    b"",
+                    ch_to_sh_message,
+                    &certificate,
+                    &certificate_verify,
+                    &cipher_suite,
+                );
+                let crypto_frame = immic_frame::frame::crypto::Frame::new(finished.to_vec());
+                payload.extend(crypto_frame.to_vec());
+            }
+            payload
+        };
+
+        HandshakePacket::Rfc9000(HandshakePacketRfc9000 {
+            reserved_bits,
+            version,
+            destination_connection_id: self.destination_connection_id.clone(),
+            source_connection_id: self.source_connection_id.clone(),
+            packet_number: self.packet_number,
+            payload: payload,
         })
     }
 

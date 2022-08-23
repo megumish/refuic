@@ -1,14 +1,20 @@
+use std::io::{Cursor, Read};
+
+use byteorder::ReadBytesExt;
 use rand::{rngs::StdRng, RngCore, SeedableRng};
 
-use crate::extension::{key_share, supported_versions, Extension};
+use crate::{
+    cipher_suite::CipherSuite,
+    extension::{key_share, read_extensions, supported_versions, Extension},
+};
 
-use super::client_hello::ClientHelloData;
+use super::{client_hello::ClientHelloData, HandshakeTransformError};
 
 pub struct ServerHelloData {
     length: usize,
     random: [u8; 32],
     legacy_session_id_echo: Vec<u8>,
-    cipher_suite: [u8; 2],
+    cipher_suite: CipherSuite,
     legacy_compression_method: u8,
     extensions: Vec<Extension>,
 }
@@ -77,17 +83,79 @@ impl ServerHelloData {
         vec.extend(&self.random);
         vec.extend((self.legacy_session_id_echo.len() as u8).to_be_bytes());
         vec.extend(&self.legacy_session_id_echo);
-        vec.extend(&self.cipher_suite);
+        vec.extend(&self.cipher_suite.to_vec());
         vec.push(self.legacy_compression_method);
         vec.extend((extensions_bytes.len() as u16).to_be_bytes());
         vec.extend(extensions_bytes);
         vec
     }
+
+    pub fn cipher_suite(&self) -> CipherSuite {
+        self.cipher_suite.clone()
+    }
 }
 
-fn select_cipher_suite(cipher_suites: &Vec<[u8; 2]>) -> [u8; 2] {
+fn select_cipher_suite(cipher_suites: &Vec<CipherSuite>) -> CipherSuite {
     cipher_suites
         .get(0)
         .expect("cipher suites is empty!")
         .clone()
+}
+
+pub fn parse_from_bytes(bytes: &[u8]) -> Result<ServerHelloData, HandshakeTransformError> {
+    let mut input = Cursor::new(bytes);
+    let handshaek_type = input.read_u8()?;
+    if handshaek_type != 2 {
+        return Err(HandshakeTransformError::NotThisHandshakeType);
+    }
+
+    let length = {
+        let mut buf = [0u8; 3];
+        input.read_exact(&mut buf)?;
+        let mut length = 0usize;
+        for b in buf {
+            length += (length << 8) + b as usize;
+        }
+        length
+    };
+
+    {
+        let mut buf = [0u8; 2];
+        input.read_exact(&mut buf)?;
+        if buf != [0x03, 0x03] {
+            return Err(HandshakeTransformError::InvalidProtocolVersion);
+        }
+    }
+
+    let random = {
+        let mut buf = [0u8; 32];
+        input.read_exact(&mut buf)?;
+        buf
+    };
+
+    let legacy_session_id_echo = {
+        let length = input.read_u8()?;
+        let mut buf = vec![0; length as usize];
+        input.read_exact(&mut buf)?;
+        buf
+    };
+
+    let cipher_suite = {
+        let mut buf = [0u8; 2];
+        input.read_exact(&mut buf)?;
+        CipherSuite::from_bytes(&buf)
+    };
+
+    let legacy_compression_method = input.read_u8()?;
+
+    let (extensions, _) = read_extensions(&mut input)?;
+
+    Ok(ServerHelloData {
+        length,
+        random,
+        legacy_session_id_echo,
+        cipher_suite,
+        legacy_compression_method,
+        extensions,
+    })
 }

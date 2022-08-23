@@ -27,6 +27,15 @@ pub fn hkdf_expand_label_sha256_aes_gcm_128_iv_len(
     hkdf_expand_label_sha256(secret, label, context, length)
 }
 
+pub fn hkdf_expand_label_sha256_aes_gcm_128_hash_len(
+    secret: &[u8],
+    label: &[u8],
+    context: &[u8],
+) -> Vec<u8> {
+    let length = Sha256::output_size();
+    hkdf_expand_label_sha256(secret, label, context, length)
+}
+
 fn hkdf_expand_label_sha256(secret: &[u8], label: &[u8], context: &[u8], length: usize) -> Vec<u8> {
     let label = ["tls13 ".as_bytes(), label].concat();
     let hkdf_label = [

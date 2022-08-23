@@ -8,6 +8,7 @@ use self::remove_protection::RemoveProtectionError;
 
 use super::{Packet, PacketTransformError};
 
+pub mod handshake;
 pub mod initial;
 pub mod remove_protection;
 
@@ -25,7 +26,7 @@ pub struct LongHeaderPacket {
 }
 
 impl LongHeaderPacket {
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn to_vec(&self) -> Vec<u8> {
         let first_byte = (1 << 7) // long header
             + (if self.fixed_bit { 1} else { 0 } << 6) // fixed bit
             + (self.long_packet_type.u8() << 4) // long packet type
