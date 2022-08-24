@@ -1,3 +1,4 @@
+//! # refuic は QUIC を実装するときに参考になるように書かれたQUICのRust実装です。
 mod cli;
 mod error;
 
