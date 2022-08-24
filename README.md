@@ -1,3 +1,3 @@
-# immic
+# refuic
 
-immic は megumish著 「即効QUIC！」 で解説するためのQUICの実装になります。
+refuic は megumish著 「QUICの参考書」 で解説するためのQUICの実装になります。

@@ -1,0 +1,16 @@
+[package]
+name = "refuic-packet"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+refuic-common = { path = "../refuic-common" }
+refuic-crypto = { path = "../refuic-crypto" }
+refuic-frame = { path = "../refuic-frame" }
+refuic-tls = { path = "../refuic-tls" }
+
+thiserror = "1.0"
+byteorder = "1.4"
+rand = { version = "0.8", features = ["std_rng"] }

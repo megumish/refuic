@@ -353,76 +353,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "immic"
-version = "0.1.0"
-dependencies = [
- "clap",
- "der",
- "ed25519-dalek",
- "immic-common",
- "immic-frame",
- "immic-packet",
- "immic-tls",
- "rand 0.7.3",
- "serde_json",
- "thiserror",
- "tracing",
- "tracing-subscriber",
- "x509-cert",
-]
-
-[[package]]
-name = "immic-common"
-version = "0.1.0"
-dependencies = [
- "byteorder",
- "thiserror",
- "tracing",
-]
-
-[[package]]
-name = "immic-crypto"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "hmac",
- "sha2 0.10.2",
- "thiserror",
-]
-
-[[package]]
-name = "immic-frame"
-version = "0.1.0"
-dependencies = [
- "immic-common",
- "thiserror",
-]
-
-[[package]]
-name = "immic-packet"
-version = "0.1.0"
-dependencies = [
- "byteorder",
- "immic-common",
- "immic-crypto",
- "immic-frame",
- "immic-tls",
- "rand 0.8.5",
- "thiserror",
-]
-
-[[package]]
-name = "immic-tls"
-version = "0.1.0"
-dependencies = [
- "byteorder",
- "immic-crypto",
- "rand 0.8.5",
- "spki",
- "thiserror",
-]
-
-[[package]]
 name = "indexmap"
 version = "1.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -630,6 +560,76 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca3129af7b92a17112d59ad498c6f81eaf463253766b90396d39ea7a39d6613c"
 dependencies = [
  "rand_core 0.5.1",
+]
+
+[[package]]
+name = "refuic"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "der",
+ "ed25519-dalek",
+ "rand 0.7.3",
+ "refuic-common",
+ "refuic-frame",
+ "refuic-packet",
+ "refuic-tls",
+ "serde_json",
+ "thiserror",
+ "tracing",
+ "tracing-subscriber",
+ "x509-cert",
+]
+
+[[package]]
+name = "refuic-common"
+version = "0.1.0"
+dependencies = [
+ "byteorder",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
+name = "refuic-crypto"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "hmac",
+ "sha2 0.10.2",
+ "thiserror",
+]
+
+[[package]]
+name = "refuic-frame"
+version = "0.1.0"
+dependencies = [
+ "refuic-common",
+ "thiserror",
+]
+
+[[package]]
+name = "refuic-packet"
+version = "0.1.0"
+dependencies = [
+ "byteorder",
+ "rand 0.8.5",
+ "refuic-common",
+ "refuic-crypto",
+ "refuic-frame",
+ "refuic-tls",
+ "thiserror",
+]
+
+[[package]]
+name = "refuic-tls"
+version = "0.1.0"
+dependencies = [
+ "byteorder",
+ "rand 0.8.5",
+ "refuic-crypto",
+ "spki",
+ "thiserror",
 ]
 
 [[package]]

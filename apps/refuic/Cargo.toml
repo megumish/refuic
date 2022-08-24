@@ -1,0 +1,22 @@
+[package]
+name = "refuic"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+refuic-packet = { path = "../../crates/refuic-packet" }
+refuic-frame = { path  = "../../crates/refuic-frame" }
+refuic-common = { path = "../../crates/refuic-common" }
+refuic-tls = { path = "../../crates/refuic-tls" }
+
+clap = { version = "3.2.16", features = ["derive"] }
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+serde_json = "1.0"
+ed25519-dalek = "1.0"
+rand = "0.7"
+x509-cert = "0.1"
+der = { version = "0.6", features = ["pem"] }
