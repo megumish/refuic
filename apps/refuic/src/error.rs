@@ -10,7 +10,7 @@ pub enum Error {
     LongHeaderPacketTransform(#[from] refuic_packet::long::LongHeaderPacketTransform),
     #[error("remove protection from long header packet error")]
     RemoveProtectionFromLongHeaderError(
-        #[from] refuic_packet::long::remove_protection::RemoveProtectionError,
+        #[from] refuic_packet::long::initial::RemoveProtectionError,
     ),
     #[error("parse frame error")]
     ParseFrameError(#[from] refuic_frame::frame::ParseFrameError),

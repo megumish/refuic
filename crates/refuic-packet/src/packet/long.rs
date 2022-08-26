@@ -4,15 +4,10 @@ use byteorder::{NetworkEndian, ReadBytesExt};
 use refuic_common::{var_int::NewVarIntError, QuicVersion, ReadVarInt};
 use refuic_crypto::Aes128GcmEncryptError;
 
-use self::remove_protection::RemoveProtectionError;
-
 use super::{Packet, PacketTransformError};
 
 pub mod handshake;
 pub mod initial;
-pub mod remove_protection;
-
-pub use remove_protection::remove_protection;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct LongHeaderPacket {
@@ -149,15 +144,7 @@ pub enum LongHeaderPacketTransform {
     #[error("packet transform error")]
     PacketTransformError(#[from] PacketTransformError),
     #[error("remove protection error")]
-    RemoveProtectionError(#[from] RemoveProtectionError),
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum ProtectError {
-    #[error("new var int error")]
-    NewVarIntError(#[from] NewVarIntError),
-    #[error("aes 128 gcm encrypt error")]
-    Aes128GcmEncryptError(#[from] Aes128GcmEncryptError),
+    RemoveProtectionError(#[from] initial::RemoveProtectionError),
 }
 
 fn type_specific_bits_to_half_byte(bits: [bool; 4]) -> u8 {

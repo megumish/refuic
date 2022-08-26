@@ -14,3 +14,6 @@ refuic-tls = { path = "../refuic-tls" }
 thiserror = "1.0"
 byteorder = "1.4"
 rand = { version = "0.8", features = ["std_rng"] }
+
+[dev-dependencies]
+anyhow = "1.0"

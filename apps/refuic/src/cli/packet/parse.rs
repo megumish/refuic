@@ -32,7 +32,7 @@ impl Cli {
         info!("packet into Long Header Packet format: {:?}", long);
 
         let unprotected_long: LongHeaderPacket =
-            long::remove_protection(&long, &QuicVersion::Rfc9000, &EndpointType::Server)?;
+            long::initial::remove_protection(&long, &QuicVersion::Rfc9000, &EndpointType::Server)?;
 
         info!(
             "remove protection from long header packet: {:?}",

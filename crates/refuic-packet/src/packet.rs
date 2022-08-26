@@ -61,33 +61,3 @@ pub enum PacketTransformError {
     #[error("packet read error")]
     PacketReadError(#[from] PacketReadError),
 }
-
-fn get_key_iv_hp_v1(
-    label: &[u8],
-    client_destination_connection_id: &[u8],
-    initial_salt: &[u8],
-) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
-    let initial_secret = hkdf_extract_sha256(&initial_salt, client_destination_connection_id);
-
-    let endpoint_initial_secret = hkdf_expand_label_sha256_sha256_len(&initial_secret, label, &[]);
-
-    let key = hkdf_expand_label_sha256_aes_gcm_128_key_len(
-        &endpoint_initial_secret,
-        "quic key".as_bytes(),
-        &[],
-    );
-
-    let iv = hkdf_expand_label_sha256_aes_gcm_128_iv_len(
-        &endpoint_initial_secret,
-        "quic iv".as_bytes(),
-        &[],
-    );
-
-    let hp = hkdf_expand_label_sha256_aes_gcm_128_key_len(
-        &endpoint_initial_secret,
-        "quic hp".as_bytes(),
-        &[],
-    );
-
-    (key, iv, hp)
-}

@@ -52,8 +52,7 @@ pub fn aes_128_gcm_encrypt(
 }
 
 pub fn aes_128_gcm_encrypted_len(length: usize) -> usize {
-    let key_length = aes_128_gcm_key_len();
-    length + (key_length - length % key_length)
+    length + aes_128_gcm_key_len()
 }
 
 #[derive(thiserror::Error, Debug)]

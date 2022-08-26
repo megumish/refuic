@@ -1,4 +1,4 @@
-use aes_gcm::{Aes128Gcm, KeySizeUser};
+use aes_gcm::{aes::Aes128, Aes128Gcm, KeySizeUser};
 use hmac::digest::OutputSizeUser;
 use sha2::Sha256;
 
@@ -15,6 +15,15 @@ pub fn hkdf_expand_label_sha256_aes_gcm_128_key_len(
     context: &[u8],
 ) -> Vec<u8> {
     let length = Aes128Gcm::key_size();
+    hkdf_expand_label_sha256(secret, label, context, length)
+}
+
+pub fn hkdf_expand_label_sha256_aes_128_key_len(
+    secret: &[u8],
+    label: &[u8],
+    context: &[u8],
+) -> Vec<u8> {
+    let length = Aes128::key_size();
     hkdf_expand_label_sha256(secret, label, context, length)
 }
 
