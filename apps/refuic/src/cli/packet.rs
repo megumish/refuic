@@ -1,8 +1,6 @@
 use clap::{Parser, Subcommand};
 use tracing::instrument;
 
-use crate::error::Error;
-
 mod parse;
 
 #[derive(Parser, Debug, PartialEq, Clone)]
@@ -19,7 +17,7 @@ pub enum Commands {
 
 impl Commands {
     #[instrument(skip(self), name = "packet command", level = "trace")]
-    pub fn run(self) -> Result<(), Error> {
+    pub fn run(self) -> Result<(), anyhow::Error> {
         match self {
             Commands::Parse(cli) => cli.parse_stdin_packet(),
         }

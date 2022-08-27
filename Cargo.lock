@@ -572,6 +572,7 @@ dependencies = [
 name = "refuic"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "clap",
  "der",
  "ed25519-dalek",

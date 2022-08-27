@@ -16,9 +16,14 @@ impl ServerInitialPacket {
         }
     }
 
-    pub fn protect(&self) -> Result<LongHeaderPacket, ProtectError> {
+    pub fn protect(
+        &self,
+        initial_destination_connection_id: &[u8],
+    ) -> Result<LongHeaderPacket, ProtectError> {
         match self {
-            Self::Rfc9000(p) => p.0.protect(&EndpointType::Server),
+            Self::Rfc9000(p) => {
+                p.0.protect(initial_destination_connection_id, &EndpointType::Server)
+            }
         }
     }
 }

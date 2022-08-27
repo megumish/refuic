@@ -4,7 +4,7 @@ use clap::Parser;
 use refuic_common::{EndpointType, QuicVersion};
 use refuic_frame::frame::{self, Frame};
 use refuic_packet::{
-    long::{self, initial::InitialPacket},
+    long::{self, initial::ClientInitialPacket},
     packet, LongHeaderPacket, Packet,
 };
 use tracing::{info, instrument};
@@ -14,7 +14,7 @@ pub struct Cli {}
 
 impl Cli {
     #[instrument(skip(self), name = "parse packet from stdin", level = "info")]
-    pub fn parse_stdin_packet(&self) -> Result<(), crate::error::Error> {
+    pub fn parse_stdin_packet(&self) -> Result<(), anyhow::Error> {
         let mut stdin = std::io::stdin();
 
         let mut buf = Vec::new();
@@ -31,21 +31,14 @@ impl Cli {
 
         info!("packet into Long Header Packet format: {:?}", long);
 
-        let unprotected_long: LongHeaderPacket =
-            long::initial::remove_protection(&long, &QuicVersion::Rfc9000, &EndpointType::Server)?;
+        let initial: ClientInitialPacket = ClientInitialPacket::unprotect(
+            &long,
+            None,
+            &QuicVersion::Rfc9000,
+            &EndpointType::Server,
+        )?;
 
-        info!(
-            "remove protection from long header packet: {:?}",
-            unprotected_long
-        );
-
-        let initial: InitialPacket =
-            long::initial::parse_from_long(&unprotected_long, &QuicVersion::Rfc9000)?;
-
-        info!(
-            "long header packet into Initial Packet format: {:?}",
-            initial
-        );
+        info!("remove protection from long header packet: {:?}", initial);
 
         let frames: Vec<Frame> = frame::parse_from_bytes(initial.payload(), &QuicVersion::Rfc9000)?;
 

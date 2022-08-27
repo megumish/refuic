@@ -1,8 +1,6 @@
 use clap::{Parser, Subcommand};
 use tracing::instrument;
 
-use crate::error::Error;
-
 mod packet;
 mod server;
 mod var_int;
@@ -24,7 +22,7 @@ pub enum Commands {
 
 impl Commands {
     #[instrument(skip(self), name = "first command", level = "trace")]
-    pub fn run(self) -> Result<(), Error> {
+    pub fn run(self) -> Result<(), anyhow::Error> {
         match self {
             Commands::Packet(cli) => cli.command.run(),
             Commands::VarInt(cli) => cli.run(),

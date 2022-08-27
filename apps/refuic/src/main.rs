@@ -4,9 +4,8 @@ mod error;
 
 use clap::Parser;
 use cli::Cli;
-use error::Error;
 
-pub fn main() -> Result<(), Error> {
+pub fn main() -> Result<(), anyhow::Error> {
     let cli = Cli::parse();
     tracing_subscriber::fmt::init();
 

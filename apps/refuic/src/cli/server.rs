@@ -9,8 +9,6 @@ use refuic_packet::long;
 use refuic_tls::signature_scheme::SignatureScheme;
 use x509_cert::der::Decode;
 
-use crate::error::Error;
-
 #[derive(Parser, Debug, PartialEq, Clone)]
 pub struct Cli {
     #[clap(value_parser)]
@@ -18,7 +16,7 @@ pub struct Cli {
 }
 
 impl Cli {
-    pub fn run(self) -> Result<(), Error> {
+    pub fn run(self) -> Result<(), anyhow::Error> {
         let socket = UdpSocket::bind(self.address)?;
 
         let certificate_bytes = include_bytes!("./cacert.der");
@@ -27,7 +25,6 @@ impl Cli {
         let certificate = x509_cert::Certificate::from_der(certificate_bytes).unwrap();
         let cert_signature_scheme =
             SignatureScheme::from_oid(&certificate.signature_algorithm.oid).unwrap();
-        eprintln!("{:?}", cert_signature_scheme);
         let cert_signature = certificate.signature.as_bytes().unwrap();
         {
             let mut buf = vec![0; 1200];
@@ -35,12 +32,20 @@ impl Cli {
 
             // https://www.rfc-editor.org/rfc/rfc9000.html#name-example-handshake-flows
 
-            let (server_initial, _keypair, client_hello_data, server_hello_data) = {
-                let initial = long::initial::parse_from_bytes(
+            let (
+                initial_destination_connection_id,
+                server_initial,
+                _keypair,
+                client_hello_data,
+                server_hello_data,
+            ) = {
+                let initial = long::initial::ClientInitialPacket::parse_from_bytes(
                     &buf,
+                    None,
                     &QuicVersion::Rfc9000,
                     &EndpointType::Server,
                 )?;
+                let initial_destination_connection_id = initial.destination_connection_id().clone();
                 let client_hello_data = {
                     let frames = frame::parse_from_bytes(initial.payload(), &QuicVersion::Rfc9000)?;
                     let crypto_data = frame::crypto::crypto_data(&frames)?;
@@ -57,23 +62,28 @@ impl Cli {
                     refuic_tls::handshake::server_hello::parse_from_bytes(&crypto_data)?
                 };
                 (
-                    initial.server_initial(&client_hello_data, keypair.public.as_bytes()),
+                    initial_destination_connection_id,
+                    server_initial,
                     keypair.secret,
                     client_hello_data,
                     server_hello_data,
                 )
             };
 
-            let _handshake = server_initial.handshake_server(
-                &cert_signature_scheme,
-                cert_signature,
-                &[client_hello_data.to_vec(), server_hello_data.to_vec()].concat(),
-                &server_hello_data.cipher_suite(),
-            );
+            // let _handshake = server_initial.handshake_server(
+            //     &cert_signature_scheme,
+            //     cert_signature,
+            //     &[client_hello_data.to_vec(), server_hello_data.to_vec()].concat(),
+            //     &server_hello_data.cipher_suite(),
+            // );
 
             {
                 let mut buf = Vec::new();
-                buf.extend(server_initial.protect(&EndpointType::Server)?.to_vec());
+                buf.extend(
+                    server_initial
+                        .protect(&initial_destination_connection_id)?
+                        .to_vec(),
+                );
                 // buf.extend(handshake.protect(&EndpointType::Server)?.to_vec());
                 // buf.extend(handshake.to_vec());
                 let _ = socket.send_to(&buf, peer_addr);

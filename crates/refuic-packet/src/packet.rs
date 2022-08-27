@@ -1,12 +1,6 @@
 use std::io::{Cursor, Read};
 
 use byteorder::ReadBytesExt;
-use refuic_crypto::{
-    hkdf_expand_label::{
-        hkdf_expand_label_sha256_aes_gcm_128_iv_len, hkdf_expand_label_sha256_aes_gcm_128_key_len,
-    },
-    hkdf_expand_label_sha256_sha256_len, hkdf_extract_sha256,
-};
 
 pub mod long;
 

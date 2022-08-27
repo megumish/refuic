@@ -1,8 +1,9 @@
 use std::io::{Cursor, Read};
 
 use byteorder::{NetworkEndian, ReadBytesExt};
-use refuic_common::{var_int::NewVarIntError, QuicVersion, ReadVarInt};
-use refuic_crypto::Aes128GcmEncryptError;
+use refuic_common::{QuicVersion, ReadVarInt};
+
+use crate::PacketReadError;
 
 use super::{Packet, PacketTransformError};
 
@@ -72,9 +73,17 @@ pub fn parse_from_packet(
 pub fn parse_from_bytes(
     buf: &[u8],
     version: &QuicVersion,
-) -> Result<LongHeaderPacket, PacketTransformError> {
+) -> Result<LongHeaderPacket, ParseFromBytesError> {
     let packet = super::parse_from_bytes(buf)?;
-    parse_from_packet(packet, version)
+    Ok(parse_from_packet(packet, version)?)
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum ParseFromBytesError {
+    #[error("packet read error")]
+    PacketReadError(#[from] PacketReadError),
+    #[error("packet transform error")]
+    PacketTransformError(#[from] PacketTransformError),
 }
 
 pub fn parse_from_packet_v1(packet: Packet) -> Result<LongHeaderPacket, PacketTransformError> {
@@ -144,7 +153,7 @@ pub enum LongHeaderPacketTransform {
     #[error("packet transform error")]
     PacketTransformError(#[from] PacketTransformError),
     #[error("remove protection error")]
-    RemoveProtectionError(#[from] initial::RemoveProtectionError),
+    RemoveProtectionError(#[from] initial::UnprotectError),
 }
 
 fn type_specific_bits_to_half_byte(bits: [bool; 4]) -> u8 {
@@ -154,13 +163,4 @@ fn type_specific_bits_to_half_byte(bits: [bool; 4]) -> u8 {
     type_specific_half_byte += (bits[2] as u8) << 1;
     type_specific_half_byte += (bits[3] as u8) << 0;
     type_specific_half_byte
-}
-
-fn type_specific_half_byte_to_bits(half_byte: u8) -> [bool; 4] {
-    let mut type_speicific_bits = [false; 4];
-    type_speicific_bits[0] = (half_byte >> 3) == 1;
-    type_speicific_bits[1] = ((half_byte >> 2) & 1) == 1;
-    type_speicific_bits[2] = ((half_byte >> 1) & 1) == 1;
-    type_speicific_bits[3] = ((half_byte >> 0) & 1) == 1;
-    type_speicific_bits
 }
