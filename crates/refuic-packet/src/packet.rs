@@ -54,4 +54,6 @@ pub enum PacketTransformError {
     StdIo(#[from] std::io::Error),
     #[error("packet read error")]
     PacketReadError(#[from] PacketReadError),
+    #[error("this is not long")]
+    NotLongPacket,
 }

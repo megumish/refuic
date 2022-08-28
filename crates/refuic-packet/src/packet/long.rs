@@ -5,7 +5,7 @@ use refuic_common::{QuicVersion, ReadVarInt};
 
 use crate::PacketReadError;
 
-use super::{Packet, PacketTransformError};
+use super::{HeaderForm, Packet, PacketTransformError};
 
 pub mod handshake;
 pub mod initial;
@@ -38,6 +38,14 @@ impl LongHeaderPacket {
         ret.extend(&self.version_specific_data);
         ret
     }
+
+    pub fn source_connection_id<'a>(&'a self) -> &'a Vec<u8> {
+        &self.source_connection_id
+    }
+
+    pub fn destination_connection_id<'a>(&'a self) -> &'a Vec<u8> {
+        &self.destination_connection_id
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -56,6 +64,16 @@ impl LongPacketType {
             Self::ZeroRtt => 0b01,
             Self::Handshake => 0b10,
             Self::Retry => 0b11,
+        }
+    }
+
+    fn from_u8(u: u8) -> Self {
+        match u & 0b11 {
+            0b00 => Self::Initial,
+            0b01 => Self::ZeroRtt,
+            0b10 => Self::Handshake,
+            0b11 => Self::Retry,
+            _ => unreachable!(),
         }
     }
 }
@@ -87,6 +105,10 @@ pub enum ParseFromBytesError {
 }
 
 pub fn parse_from_packet_v1(packet: Packet) -> Result<LongHeaderPacket, PacketTransformError> {
+    if packet.header_form != HeaderForm::Long {
+        return Err(PacketTransformError::NotLongPacket);
+    }
+
     let fixed_bit = ((0b0100_0000 & packet.version_specific_bits) >> 6) == 1;
 
     let mut input = Cursor::new(packet.type_specific_bytes);

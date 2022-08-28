@@ -1,7 +1,6 @@
 use clap::{Parser, Subcommand};
 use tracing::instrument;
 
-mod packet;
 mod server;
 mod var_int;
 
@@ -14,8 +13,6 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug, PartialEq, Clone)]
 pub enum Commands {
-    /// parsing packets
-    Packet(packet::Cli),
     Server(server::Cli),
     VarInt(var_int::Cli),
 }
@@ -24,7 +21,6 @@ impl Commands {
     #[instrument(skip(self), name = "first command", level = "trace")]
     pub fn run(self) -> Result<(), anyhow::Error> {
         match self {
-            Commands::Packet(cli) => cli.command.run(),
             Commands::VarInt(cli) => cli.run(),
             Commands::Server(cli) => cli.run(),
         }

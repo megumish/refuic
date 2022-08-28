@@ -18,7 +18,7 @@ use self::{
     keys::initial_secret,
 };
 
-use super::{type_specific_bits_to_half_byte, LongHeaderPacket};
+use super::{type_specific_bits_to_half_byte, LongHeaderPacket, LongPacketType};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum InitialPacket {
@@ -169,6 +169,10 @@ impl InitialPacketRfc9000 {
         packet: &LongHeaderPacket,
         my_endpoint_type: &EndpointType,
     ) -> Result<InitialPacketRfc9000, UnprotectError> {
+        if packet.long_packet_type == LongPacketType::Initial {
+            return Err(UnprotectError::NotInitialPacket);
+        }
+
         let initial_salt = QuicVersion::Rfc9000.initial_salt();
 
         let initial_secret = initial_secret(&initial_salt, initial_destination_connection_id);
@@ -270,6 +274,8 @@ pub enum UnprotectError {
     UnexpectedEnd,
     #[error("decrypt payload error")]
     DecryptError(#[from] DecryptError),
+    #[error("not initial packet error")]
+    NotInitialPacket,
 }
 
 #[derive(thiserror::Error, Debug)]
