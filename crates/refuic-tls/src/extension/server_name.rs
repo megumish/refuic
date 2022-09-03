@@ -27,6 +27,33 @@ impl Extension {
         2 // length of self.length
          + self.length
     }
+
+    pub fn server_names(&self) -> &Vec<ServerName> {
+        &self.server_names
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        [
+            &(self.length as u16).to_be_bytes()[..],
+            &self
+                .server_names
+                .iter()
+                .flat_map(|n| {
+                    let name_type = match n.name_type {
+                        NameType::HostName => 0,
+                        NameType::Others(x) => x,
+                    };
+                    [
+                        &[name_type][..],
+                        &(n.host_name.len() as u16).to_be_bytes()[..],
+                        &n.host_name,
+                    ]
+                    .concat()
+                })
+                .collect::<Vec<u8>>(),
+        ]
+        .concat()
+    }
 }
 
 pub fn parse_from_bytes(bytes: &[u8]) -> Result<super::Extension, ReadExtensionsError> {
@@ -81,6 +108,7 @@ mod tests {
                 length: 0x16
             })
         );
+        assert_eq!(extension.to_vec(), bytes);
         Ok(())
     }
 }

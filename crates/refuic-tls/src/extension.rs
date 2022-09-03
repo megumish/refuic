@@ -1,5 +1,6 @@
 use std::io::{Cursor, Read};
 
+pub mod alpn;
 pub mod key_share;
 pub mod server_name;
 pub mod signature_algorithms;
@@ -13,6 +14,7 @@ pub enum Extension {
     ServerName(server_name::Extension),
     SupportedGroups(supported_groups::Extension),
     SignatureAlgorithms(signature_algorithms::Extension),
+    Alpn(alpn::Extension),
     SupportedVersions(supported_versions::Extension),
     KeyShare(key_share::Extension),
     Others {
@@ -24,9 +26,15 @@ pub enum Extension {
 impl Extension {
     pub fn to_vec(&self) -> Vec<u8> {
         match self {
-            Self::ServerName(_) => unimplemented!(),
+            Self::ServerName(e) => [
+                &0u16.to_be_bytes(),
+                &(e.len() as u16).to_be_bytes(),
+                &e.to_vec()[..],
+            ]
+            .concat(),
             Self::SupportedGroups(_) => unimplemented!(),
             Self::SignatureAlgorithms(_) => unimplemented!(),
+            Self::Alpn(_) => unimplemented!(),
             Self::SupportedVersions(e) => [
                 &43u16.to_be_bytes(),
                 &(e.len() as u16).to_be_bytes(),
@@ -57,6 +65,7 @@ impl Extension {
                 Self::ServerName(e) => e.len(),
                 Self::SupportedGroups(e) => e.len(),
                 Self::SignatureAlgorithms(e) => e.len(),
+                Self::Alpn(e) => e.len(),
                 Self::SupportedVersions(e) => e.len(),
                 Self::KeyShare(e) => e.len(),
                 Self::Others {
@@ -93,6 +102,8 @@ fn read_extension(input: &mut Cursor<&[u8]>) -> Result<Extension, ReadExtensions
     let extension = match extension_type {
         0 => server_name::parse_from_bytes(&extension_data)?,
         10 => supported_groups::parse_from_bytes(&extension_data)?,
+        13 => signature_algorithms::parse_from_bytes(&extension_data)?,
+        16 => alpn::parse_from_bytes(&extension_data)?,
         _ => Extension::Others {
             extension_type,
             extension_data,
