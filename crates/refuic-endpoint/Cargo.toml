@@ -8,6 +8,13 @@ edition = "2021"
 [dependencies]
 refuic-common = { path = "../refuic-common" }
 refuic-packet = { path = "../refuic-packet" }
+refuic-frame = { path = "../refuic-frame" }
+refuic-tls = { path = "../refuic-tls" }
 
 thiserror = "1.0"
 tokio = { version = "1.0", features = ["net"] }
+async-trait = "0.1"
+
+[dev-dependencies]
+anyhow = "1.0"
+refuic-packet = { path = "../refuic-packet", features = ["for_test"] }

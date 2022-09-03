@@ -1,7 +1,7 @@
 use refuic_common::EndpointType;
 use refuic_crypto::aes_128_encrypt;
 
-use crate::packet_number::PacketNumberRfc9000;
+use crate::packet_number::PacketNumber;
 
 use super::{
     keys::{client_hp, server_hp},
@@ -14,7 +14,7 @@ pub(super) struct ProtectPacketNumberRfc9000(u32);
 impl ProtectPacketNumberRfc9000 {
     pub(super) fn generate(
         encrypted_payload: &[u8],
-        packet_number: &PacketNumberRfc9000,
+        packet_number: &PacketNumber,
         initial_secret: &[u8],
         my_endpoint_type: &EndpointType,
     ) -> Self {
@@ -26,7 +26,7 @@ impl ProtectPacketNumberRfc9000 {
         );
 
         // 長さはpacket_numberの範囲に納まる
-        let mask_packet_number = PacketNumberRfc9000::try_from_bytes(&mask[1..]).unwrap();
+        let mask_packet_number = PacketNumber::try_from_bytes(&mask[1..]).unwrap();
 
         Self(packet_number.u32() ^ mask_packet_number.u32())
     }
@@ -38,7 +38,7 @@ impl ProtectPacketNumberRfc9000 {
         packet_number_length: usize,
         initial_secret: &[u8],
         my_endpoint_type: &EndpointType,
-    ) -> PacketNumberRfc9000 {
+    ) -> PacketNumber {
         let mask = mask_rfc9000_unprotected(
             packet_number_offset,
             initial_secret,
@@ -49,7 +49,7 @@ impl ProtectPacketNumberRfc9000 {
         // 長さはpacket_numberの範囲に収まる
         let mask_protect_packet_number =
             ProtectPacketNumberRfc9000::try_from_bytes(&mask[1..1 + packet_number_length]).unwrap();
-        PacketNumberRfc9000::from_u32(self.u32() ^ mask_protect_packet_number.u32())
+        PacketNumber::from_u32(self.u32() ^ mask_protect_packet_number.u32())
     }
 
     pub(super) fn to_vec(&self) -> Vec<u8> {
@@ -94,7 +94,7 @@ pub(super) struct ProtectTypeSpecificHalfByteRfc9000(u8);
 impl ProtectTypeSpecificHalfByteRfc9000 {
     pub(super) fn generate(
         encrypted_payload: &[u8],
-        packet_number: &PacketNumberRfc9000,
+        packet_number: &PacketNumber,
         type_specific_half_byte: u8,
         initial_secret: &[u8],
         my_endpoint_type: &EndpointType,
@@ -143,7 +143,7 @@ impl ProtectTypeSpecificHalfByteRfc9000 {
 }
 
 fn mask_rfc9000_protected(
-    packet_number: &PacketNumberRfc9000,
+    packet_number: &PacketNumber,
     initial_secret: &[u8],
     my_endpoint_type: &EndpointType,
     encrypted_payload: &[u8],
@@ -179,14 +179,14 @@ fn mask_rfc9000_unprotected(
     let sample_offset = packet_number_offset + 4;
     let sample = &version_specific_data[sample_offset..sample_offset + hp_key.len()];
 
-    aes_128_encrypt(&hp_key, sample)[0..1 + PacketNumberRfc9000::max_vec_len()].to_vec()
+    aes_128_encrypt(&hp_key, sample)[0..1 + PacketNumber::max_vec_len()].to_vec()
 }
 
 #[cfg(test)]
 mod tests {
     use refuic_common::{EndpointType, QuicVersion};
 
-    use crate::{long::initial::keys::initial_secret, packet_number::PacketNumberRfc9000};
+    use crate::{long::initial::keys::initial_secret, packet_number::PacketNumber};
 
     use super::{ProtectPacketNumberRfc9000, ProtectTypeSpecificHalfByteRfc9000};
 
@@ -199,7 +199,7 @@ mod tests {
         let initial_secret = initial_secret(&initial_salt, initial_destination_connection_id);
         let protect_packet_number = ProtectPacketNumberRfc9000::generate(
             include_bytes!("./test_data/xargs_org/client_initial_0/encrypted_payload.bin"),
-            &PacketNumberRfc9000::from_u32(0),
+            &PacketNumber::from_u32(0),
             &initial_secret,
             &EndpointType::Client,
         );
@@ -218,7 +218,7 @@ mod tests {
         let initial_secret = initial_secret(&initial_salt, initial_destination_connection_id);
         let protect_type_sepcific_half_byte = ProtectTypeSpecificHalfByteRfc9000::generate(
             include_bytes!("./test_data/xargs_org/client_initial_0/encrypted_payload.bin"),
-            &PacketNumberRfc9000::from_u32(0),
+            &PacketNumber::from_u32(0),
             0,
             &initial_secret,
             &EndpointType::Client,

@@ -5,11 +5,16 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = []
+for_test = ["default", "anyhow"]
+
 [dependencies]
 refuic-common = { path = "../refuic-common" }
 refuic-crypto = { path = "../refuic-crypto" }
 refuic-frame = { path = "../refuic-frame" }
 refuic-tls = { path = "../refuic-tls" }
+anyhow = { version = "1.0", optional = true }
 
 thiserror = "1.0"
 byteorder = "1.4"

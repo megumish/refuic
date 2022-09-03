@@ -4,13 +4,13 @@ use refuic_crypto::{
     Aes128GcmEncryptError,
 };
 
-use crate::packet_number::PacketNumberRfc9000;
+use crate::packet_number::PacketNumber;
 
 use super::keys::{client_iv, client_key, server_iv, server_key};
 
 pub(super) fn encrypt(
     initial_secret: &[u8],
-    packet_number: &PacketNumberRfc9000,
+    packet_number: &PacketNumber,
     my_endpoint_type: &EndpointType,
     packet_header: &[u8],
     payload: &[u8],
@@ -35,7 +35,7 @@ pub(super) fn encrypt(
 
 pub(super) fn decrypt(
     initial_secret: &[u8],
-    packet_number: &PacketNumberRfc9000,
+    packet_number: &PacketNumber,
     my_endpoint_type: &EndpointType,
     packet_header: &[u8],
     encrypted_payload: &[u8],
@@ -65,7 +65,7 @@ pub(super) fn decrypt(
 
 /// https://www.rfc-editor.org/rfc/rfc9001#section-5.3-5
 /// nonce は iv と packet number bytes の XOR で作られる
-fn nonce(iv: &[u8], packet_number: &PacketNumberRfc9000) -> Vec<u8> {
+fn nonce(iv: &[u8], packet_number: &PacketNumber) -> Vec<u8> {
     std::iter::repeat(&0)
         .take(iv.len() - packet_number.vec_len())
         .chain(packet_number.to_vec().iter())
@@ -98,7 +98,7 @@ mod tests {
 
     use crate::{
         long::initial::{crypto::decrypt, keys::initial_secret},
-        packet_number::PacketNumberRfc9000,
+        packet_number::PacketNumber,
     };
 
     use super::encrypt;
@@ -113,7 +113,7 @@ mod tests {
 
         let encrypted_payload = encrypt(
             &initial_secret,
-            &PacketNumberRfc9000::from_u32(0),
+            &PacketNumber::from_u32(0),
             &EndpointType::Client,
             include_bytes!("./test_data/xargs_org/client_initial_0/packet_header.bin"),
             include_bytes!("./test_data/xargs_org/client_initial_0/payload.bin"),
@@ -135,7 +135,7 @@ mod tests {
 
         let payload = decrypt(
             &initial_secret,
-            &PacketNumberRfc9000::from_u32(0),
+            &PacketNumber::from_u32(0),
             &EndpointType::Server,
             include_bytes!("./test_data/xargs_org/client_initial_0/packet_header.bin"),
             include_bytes!("./test_data/xargs_org/client_initial_0/encrypted_payload.bin"),

@@ -1,4 +1,4 @@
-use crate::named_group::NamedCurve;
+use crate::named_curve::NamedCurve;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Extension {

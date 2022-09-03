@@ -17,7 +17,6 @@ pub struct ClientHelloData {
     pub(crate) cipher_suites: Vec<CipherSuite>,
     pub(crate) legacy_compression_method: Vec<u8>,
     pub(crate) extensions: Vec<Extension>,
-    pub total_length: usize,
 }
 
 impl ClientHelloData {
@@ -57,6 +56,14 @@ impl ClientHelloData {
         ]
         .concat()
     }
+
+    pub fn cipher_suites(&self) -> &Vec<CipherSuite> {
+        &self.cipher_suites
+    }
+
+    pub fn extensions(&self) -> &Vec<Extension> {
+        &self.extensions
+    }
 }
 
 pub fn parse_from_bytes(bytes: &[u8]) -> Result<ClientHelloData, HandshakeTransformError> {
@@ -76,12 +83,9 @@ pub fn parse_from_bytes(bytes: &[u8]) -> Result<ClientHelloData, HandshakeTransf
         length
     };
 
-    let mut actual_remain_length = 0usize;
-
     {
         let mut buf = [0u8; 2];
         input.read_exact(&mut buf)?;
-        actual_remain_length += 2;
         if buf != [0x03, 0x03] {
             return Err(HandshakeTransformError::InvalidProtocolVersion);
         }
@@ -90,7 +94,6 @@ pub fn parse_from_bytes(bytes: &[u8]) -> Result<ClientHelloData, HandshakeTransf
     let random = {
         let mut buf = [0u8; 32];
         input.read_exact(&mut buf)?;
-        actual_remain_length += 32;
         buf
     };
 
@@ -98,7 +101,6 @@ pub fn parse_from_bytes(bytes: &[u8]) -> Result<ClientHelloData, HandshakeTransf
         let length = input.read_u8()?;
         let mut buf = vec![0; length as usize];
         input.read_exact(&mut buf)?;
-        actual_remain_length += 1 + length as usize;
         buf
     };
 
@@ -110,7 +112,6 @@ pub fn parse_from_bytes(bytes: &[u8]) -> Result<ClientHelloData, HandshakeTransf
             input.read_exact(&mut buf)?;
             vec.push(buf);
         }
-        actual_remain_length += 2 + length as usize;
         vec.iter().map(|x| CipherSuite::from_bytes(x)).collect()
     };
 
@@ -118,14 +119,10 @@ pub fn parse_from_bytes(bytes: &[u8]) -> Result<ClientHelloData, HandshakeTransf
         let length = input.read_u8()?;
         let mut buf = vec![0; length as usize];
         input.read_exact(&mut buf)?;
-        actual_remain_length += 1 + length as usize;
         buf
     };
 
-    let (extensions, total_length) = {
-        let (extensions, read_length) = read_extensions(&mut input)?;
-        (extensions, 4 + actual_remain_length + read_length)
-    };
+    let extensions = read_extensions(&mut input)?;
 
     Ok(ClientHelloData {
         length,
@@ -134,6 +131,5 @@ pub fn parse_from_bytes(bytes: &[u8]) -> Result<ClientHelloData, HandshakeTransf
         cipher_suites,
         legacy_compression_method,
         extensions,
-        total_length,
     })
 }

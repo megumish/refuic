@@ -3,7 +3,9 @@ use std::io::{Cursor, Read};
 use byteorder::{NetworkEndian, ReadBytesExt};
 use refuic_common::{QuicVersion, ReadVarInt};
 
-use crate::PacketReadError;
+use crate::{packet_number::PacketNumber, PacketReadError};
+
+use self::initial::ClientInitialPacket;
 
 use super::{HeaderForm, Packet, PacketTransformError};
 
@@ -39,12 +41,41 @@ impl LongHeaderPacket {
         ret
     }
 
+    pub fn vec_len(&self) -> usize {
+        1 // first byte length
+        + self.version.len()
+        + 1 // length of destination connection id length
+        + self.destination_connection_id.len()
+        + 1 // length of source connection id length
+        + self.source_connection_id.len()
+        + self.version_specific_data.len()
+    }
+
     pub fn source_connection_id<'a>(&'a self) -> &'a Vec<u8> {
         &self.source_connection_id
     }
 
     pub fn destination_connection_id<'a>(&'a self) -> &'a Vec<u8> {
         &self.destination_connection_id
+    }
+
+    pub fn version<'a>(&'a self) -> &'a QuicVersion {
+        &self.version
+    }
+}
+
+#[cfg(feature = "for_test")]
+impl LongHeaderPacket {
+    pub fn new_client_hello_packet_v1(
+        packet_number: &PacketNumber,
+        initial_destination_connection_id: Option<&[u8]>,
+    ) -> Result<Self, anyhow::Error> {
+        let initial_packet = ClientInitialPacket::new_hello(
+            &QuicVersion::Rfc9000,
+            packet_number,
+            initial_destination_connection_id,
+        )?;
+        Ok(initial_packet.protect(initial_packet.destination_connection_id())?)
     }
 }
 
@@ -66,16 +97,6 @@ impl LongPacketType {
             Self::Retry => 0b11,
         }
     }
-
-    fn from_u8(u: u8) -> Self {
-        match u & 0b11 {
-            0b00 => Self::Initial,
-            0b01 => Self::ZeroRtt,
-            0b10 => Self::Handshake,
-            0b11 => Self::Retry,
-            _ => unreachable!(),
-        }
-    }
 }
 
 pub fn parse_from_packet(
@@ -92,8 +113,23 @@ pub fn parse_from_bytes(
     buf: &[u8],
     version: &QuicVersion,
 ) -> Result<LongHeaderPacket, ParseFromBytesError> {
-    let packet = super::parse_from_bytes(buf)?;
-    Ok(parse_from_packet(packet, version)?)
+    let packet = super::parse_from_bytes(buf).map_err(|error| match &error {
+        PacketReadError::StdIo(stdio_error) => match stdio_error.kind() {
+            std::io::ErrorKind::UnexpectedEof => ParseFromBytesError::UnexpectedEnd,
+            _ => error.into(),
+        },
+    })?;
+    Ok(
+        parse_from_packet(packet, version).map_err(|error| match &error {
+            PacketTransformError::StdIo(stdio_error) => match stdio_error.kind() {
+                std::io::ErrorKind::UnexpectedEof => ParseFromBytesError::UnexpectedEnd,
+                _ => error.into(),
+            },
+            PacketTransformError::NotLongPacket => ParseFromBytesError::NotLongPacket,
+            PacketTransformError::NoSupportVersion => ParseFromBytesError::NoSupportVersion,
+            _ => error.into(),
+        })?,
+    )
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -102,6 +138,12 @@ pub enum ParseFromBytesError {
     PacketReadError(#[from] PacketReadError),
     #[error("packet transform error")]
     PacketTransformError(#[from] PacketTransformError),
+    #[error("not long packet")]
+    NotLongPacket,
+    #[error("unexpected end")]
+    UnexpectedEnd,
+    #[error("no support version")]
+    NoSupportVersion,
 }
 
 pub fn parse_from_packet_v1(packet: Packet) -> Result<LongHeaderPacket, PacketTransformError> {

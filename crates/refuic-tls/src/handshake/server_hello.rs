@@ -148,7 +148,7 @@ pub fn parse_from_bytes(bytes: &[u8]) -> Result<ServerHelloData, HandshakeTransf
 
     let legacy_compression_method = input.read_u8()?;
 
-    let (extensions, _) = read_extensions(&mut input)?;
+    let extensions = read_extensions(&mut input)?;
 
     Ok(ServerHelloData {
         length,

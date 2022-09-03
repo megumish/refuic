@@ -26,6 +26,10 @@ impl QuicVersion {
             QuicVersion::Others(x) => x.to_le_bytes(),
         }
     }
+
+    pub fn len(&self) -> usize {
+        4
+    }
 }
 
 impl Into<QuicVersion> for u32 {

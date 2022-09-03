@@ -23,7 +23,7 @@ pub struct EcnCounts {
 }
 
 impl Frame {
-    pub fn new(packet_number: u32) -> super::Frame {
+    pub fn new(packet_number: u32) -> super::FrameRfc9000 {
         let largest_acknowledged = packet_number;
         // ok
         let ack_delay = VarInt::try_new(1 << 6).unwrap();
@@ -32,7 +32,7 @@ impl Frame {
             VarInt::try_new(packet_number.checked_sub(1).unwrap_or(0) as u64).unwrap();
         let ack_range = Vec::new();
         let ecn_counts = None;
-        super::Frame::Ack(Frame {
+        super::FrameRfc9000::Ack(Frame {
             largest_acknowledged,
             ack_delay,
             first_ack_range,

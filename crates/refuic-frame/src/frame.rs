@@ -23,7 +23,7 @@ pub mod stream_data_blocked;
 pub mod streams_blocked;
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Frame {
+pub enum FrameRfc9000 {
     Padding,
     Ping,
     Ack(ack::Frame),
@@ -47,7 +47,7 @@ pub enum Frame {
     Extension(u64),
 }
 
-impl Frame {
+impl FrameRfc9000 {
     pub fn to_vec(&self) -> Vec<u8> {
         match self {
             Self::Crypto(f) => {
@@ -63,29 +63,13 @@ impl Frame {
     }
 }
 
-pub fn parse_from_bytes(
-    bytes: &[u8],
-    version: &QuicVersion,
-) -> Result<Vec<Frame>, ParseFrameError> {
-    match version {
-        QuicVersion::Rfc9000 => parse_from_bytes_v1(bytes),
-        _ => unimplemented!("no supported version"),
-    }
-}
-
-pub fn parse_from_bytes_v1(bytes: &[u8]) -> Result<Vec<Frame>, ParseFrameError> {
+pub fn parse_from_bytes_v1(bytes: &[u8]) -> Result<Vec<FrameRfc9000>, ParseFrameError> {
     let mut input = Cursor::new(bytes);
     let mut frames = Vec::new();
     loop {
-        let frame_type = match input.read_var_int() {
-            Err(err) => match err.kind() {
-                std::io::ErrorKind::UnexpectedEof => return Ok(frames),
-                _ => return Err(err).map_err(Into::into),
-            },
-            Ok(x) => x,
-        };
+        let frame_type = input.read_var_int()?;
         let frame = match frame_type.u64() {
-            6 => Frame::Crypto(read_crypto_frame(&mut input)?),
+            6 => FrameRfc9000::Crypto(read_crypto_frame(&mut input)?),
             _ => unimplemented!(),
         };
         frames.push(frame);

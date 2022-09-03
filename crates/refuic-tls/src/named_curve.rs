@@ -22,4 +22,13 @@ impl NamedCurve {
     pub fn len(&self) -> usize {
         2
     }
+
+    pub fn from_u16(u: u16) -> Self {
+        match u {
+            0x17 => Self::Secp256r1,
+            0x18 => Self::Secp384rl,
+            0x1d => Self::X25519,
+            x => Self::Others(x),
+        }
+    }
 }

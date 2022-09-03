@@ -11,8 +11,8 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn new(crypto_data: Vec<u8>) -> super::Frame {
-        super::Frame::Crypto(Self {
+    pub fn new(crypto_data: Vec<u8>) -> super::FrameRfc9000 {
+        super::FrameRfc9000::Crypto(Self {
             offset: 0,
             crypto_data,
         })
@@ -28,6 +28,10 @@ impl Frame {
         ]
         .concat()
     }
+
+    pub fn crypto_data(&self) -> &Vec<u8> {
+        &self.crypto_data
+    }
 }
 
 pub fn read_crypto_frame(input: &mut Cursor<&[u8]>) -> Result<Frame, ParseFrameError> {
@@ -41,11 +45,11 @@ pub fn read_crypto_frame(input: &mut Cursor<&[u8]>) -> Result<Frame, ParseFrameE
     })
 }
 
-pub fn crypto_data(frames: &Vec<super::Frame>) -> Result<Vec<u8>, CryptoDataError> {
+pub fn crypto_data(frames: &Vec<super::FrameRfc9000>) -> Result<Vec<u8>, CryptoDataError> {
     let mut crypto_frames = frames
         .iter()
         .filter_map(|f| match f {
-            super::Frame::Crypto(c) => Some(c),
+            super::FrameRfc9000::Crypto(c) => Some(c),
             _ => None,
         })
         .collect::<Vec<&Frame>>();

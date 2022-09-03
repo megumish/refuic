@@ -10,7 +10,7 @@ mod keys;
 pub use endpoint_client::ClientInitialPacket;
 pub use endpoint_server::ServerInitialPacket;
 
-use crate::packet_number::PacketNumberRfc9000;
+use crate::packet_number::PacketNumber;
 
 use self::{
     crypto::{decrypt, encrypt, encrypted_len, DecryptError},
@@ -47,7 +47,6 @@ impl InitialPacket {
 #[derive(Debug, PartialEq, Clone)]
 pub struct InitialPacketRfc9000 {
     reserved_bits: [bool; 2],
-    version: QuicVersion,
     destination_connection_id: Vec<u8>,
     source_connection_id: Vec<u8>,
     // tokenの長さはVarIntの取れる値の範囲になる
@@ -66,14 +65,14 @@ impl InitialPacketRfc9000 {
     }
 
     fn type_specific_half_byte(&self) -> u8 {
-        let packet_number = PacketNumberRfc9000::from_u32(self.packet_number);
+        let packet_number = PacketNumber::from_u32(self.packet_number);
         (u8::from(self.reserved_bits[0]) << 3)
             | (u8::from(self.reserved_bits[1]) << 2)
             | (packet_number.vec_len() as u8 - 1)
     }
 
     fn header(&self) -> Vec<u8> {
-        let packet_number = PacketNumberRfc9000::from_u32(self.packet_number);
+        let packet_number = PacketNumber::from_u32(self.packet_number);
         let type_specific_half_byte = self.type_specific_half_byte();
         let first_byte = (1 << 7) // long header
             + (1 << 6) // packet fixed bit
@@ -89,7 +88,7 @@ impl InitialPacketRfc9000 {
         let remain_length_bytes = remain_length.to_vec();
         [
             &[first_byte][..],
-            &self.version.to_bytes()[..],
+            &QuicVersion::Rfc9000.to_bytes()[..],
             &[self.destination_connection_id.len() as u8][..],
             &self.destination_connection_id,
             &[self.source_connection_id.len() as u8][..],
@@ -113,7 +112,7 @@ impl InitialPacketRfc9000 {
 
         let encrypted_payload = encrypt(
             &initial_secret,
-            &PacketNumberRfc9000::from_u32(self.packet_number),
+            &PacketNumber::from_u32(self.packet_number),
             my_endpoint_type,
             &self.header(),
             self.payload(),
@@ -121,14 +120,14 @@ impl InitialPacketRfc9000 {
 
         let protect_packet_number = ProtectPacketNumberRfc9000::generate(
             &encrypted_payload,
-            &PacketNumberRfc9000::from_u32(self.packet_number),
+            &PacketNumber::from_u32(self.packet_number),
             &initial_secret,
             my_endpoint_type,
         );
 
         let protect_type_specific_half_byte = ProtectTypeSpecificHalfByteRfc9000::generate(
             &encrypted_payload,
-            &PacketNumberRfc9000::from_u32(self.packet_number),
+            &PacketNumber::from_u32(self.packet_number),
             self.type_specific_half_byte(),
             &initial_secret,
             my_endpoint_type,
@@ -139,7 +138,7 @@ impl InitialPacketRfc9000 {
             // tokenの長さはVarIntの範囲に収まる
             let token_length = VarInt::try_new(self.token.len() as u64).unwrap();
             let token_length_bytes = token_length.to_vec();
-            let packet_number = PacketNumberRfc9000::from_u32(self.packet_number);
+            let packet_number = PacketNumber::from_u32(self.packet_number);
             // remain_lengthの長さはVarIntの範囲に収まる
             let remain_length =
                 VarInt::try_new((packet_number.vec_len() + encrypted_payload.len()) as u64)
@@ -157,7 +156,7 @@ impl InitialPacketRfc9000 {
             fixed_bit: true,
             long_packet_type: super::LongPacketType::Initial,
             type_specific_bits: protect_type_specific_half_byte.to_raw_bits(),
-            version: self.version.clone(),
+            version: QuicVersion::Rfc9000,
             destination_connection_id: self.destination_connection_id.clone(),
             source_connection_id: self.source_connection_id.clone(),
             version_specific_data,
@@ -168,8 +167,8 @@ impl InitialPacketRfc9000 {
         initial_destination_connection_id: &[u8],
         packet: &LongHeaderPacket,
         my_endpoint_type: &EndpointType,
-    ) -> Result<InitialPacketRfc9000, UnprotectError> {
-        if packet.long_packet_type == LongPacketType::Initial {
+    ) -> Result<(InitialPacketRfc9000, usize), UnprotectError> {
+        if packet.long_packet_type != LongPacketType::Initial {
             return Err(UnprotectError::NotInitialPacket);
         }
 
@@ -252,15 +251,17 @@ impl InitialPacketRfc9000 {
             encrypted_payload,
         )?;
 
-        Ok(Self {
-            reserved_bits: type_specific_half_byte.reserved_bits(),
-            version: packet.version.clone(),
-            destination_connection_id: packet.destination_connection_id.clone(),
-            source_connection_id: packet.source_connection_id.clone(),
-            token,
-            packet_number: packet_number.u32(),
-            payload,
-        })
+        Ok((
+            Self {
+                reserved_bits: type_specific_half_byte.reserved_bits(),
+                destination_connection_id: packet.destination_connection_id.clone(),
+                source_connection_id: packet.source_connection_id.clone(),
+                token,
+                packet_number: packet_number.u32(),
+                payload,
+            },
+            packet_header.len() + remain_length.u64() as usize - packet_number.vec_len(),
+        ))
     }
 }
 
@@ -326,7 +327,6 @@ mod tests {
             include_bytes!("./initial/test_data/xargs_org/client_initial_0/payload.bin").to_vec();
         let client_initial = InitialPacketRfc9000 {
             reserved_bits: [false, false],
-            version: QuicVersion::Rfc9000,
             destination_connection_id: destination_connection_id.clone(),
             source_connection_id: source_connection_id.clone(),
             token: vec![],
@@ -353,13 +353,14 @@ mod tests {
         assert_eq!(protected_client_initial, long);
 
         // サーバー上でunprotectする
-        let unprotected_client_initial = InitialPacketRfc9000::unprotect(
+        let (unprotected_client_initial, original_length) = InitialPacketRfc9000::unprotect(
             &destination_connection_id,
             &long,
             &EndpointType::Server,
         )?;
 
         assert_eq!(unprotected_client_initial, client_initial);
+        assert_eq!(original_length, long.vec_len());
 
         Ok(())
     }
@@ -380,7 +381,6 @@ mod tests {
             include_bytes!("./initial/test_data/xargs_org/server_initial_0/payload.bin").to_vec();
         let server_initial = InitialPacketRfc9000 {
             reserved_bits: [false, false],
-            version: QuicVersion::Rfc9000,
             destination_connection_id: destination_connection_id.clone(),
             source_connection_id: source_connection_id.clone(),
             token: vec![],
@@ -407,13 +407,14 @@ mod tests {
         assert_eq!(protected_server_initial, long);
 
         // クライアント上でunprotectする
-        let unprotected_client_initial = InitialPacketRfc9000::unprotect(
+        let (unprotected_client_initial, original_length) = InitialPacketRfc9000::unprotect(
             initial_destination_connection_id,
             &long,
             &EndpointType::Client,
         )?;
 
         assert_eq!(unprotected_client_initial, server_initial);
+        assert_eq!(original_length, long.vec_len());
 
         Ok(())
     }

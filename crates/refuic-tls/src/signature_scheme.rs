@@ -55,6 +55,29 @@ impl SignatureScheme {
         }
     }
 
+    pub fn from_u16(u: u16) -> Self {
+        match u {
+            0x0401 => SignatureScheme::RsaPkcs1Sha256,
+            0x0501 => SignatureScheme::RsaPkcs1Sha384,
+            0x0601 => SignatureScheme::RsaPkcs1Sha512,
+            0x0403 => SignatureScheme::EcdsaSecp256r1Sha256,
+            0x0503 => SignatureScheme::EcdsaSecp384r1Sha384,
+            0x0603 => SignatureScheme::EcdsaSecp521r1Sha512,
+            0x0804 => SignatureScheme::RsaPssRsaeSha256,
+            0x0805 => SignatureScheme::RsaPssRsaeSha384,
+            0x0806 => SignatureScheme::RsaPssRsaeSha512,
+            0x0807 => SignatureScheme::Ed25519,
+            0x0808 => SignatureScheme::Ed448,
+            0x0809 => SignatureScheme::RsaPssPssSha256,
+            0x080a => SignatureScheme::RsaPssPssSha384,
+            0x080b => SignatureScheme::RsaPssPssSha512,
+            0x0201 => SignatureScheme::RsaPkcs1Sha1,
+            0x0203 => SignatureScheme::EcdsaSha1,
+            x if x >= 0xfe00 && x <= 0xffff => SignatureScheme::PrivateUse(x),
+            x => SignatureScheme::Others(x),
+        }
+    }
+
     pub fn from_oid(oid: &ObjectIdentifier) -> Option<SignatureScheme> {
         // https://oidref.com/1.2.840.113549.1.1.11
         if oid == &ObjectIdentifier::new_unwrap("1.2.840.113549.1.1.11") {

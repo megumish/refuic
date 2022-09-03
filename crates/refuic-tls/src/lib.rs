@@ -4,7 +4,7 @@ use refuic_crypto::{hash::sha256, hkdf_expand_label, hkdf_extract_sha256, hmac::
 pub mod cipher_suite;
 pub mod extension;
 pub mod handshake;
-pub mod named_group;
+pub mod named_curve;
 pub mod signature_scheme;
 
 pub(crate) fn early_secret(pre_shared_key: &[u8], cipher_suite: &CipherSuite) -> Vec<u8> {

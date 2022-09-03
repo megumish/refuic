@@ -1,12 +1,18 @@
 use std::io::{Cursor, Read};
 
 pub mod key_share;
+pub mod server_name;
+pub mod signature_algorithms;
+pub mod supported_groups;
 pub mod supported_versions;
 
 use byteorder::{NetworkEndian, ReadBytesExt};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Extension {
+    ServerName(server_name::Extension),
+    SupportedGroups(supported_groups::Extension),
+    SignatureAlgorithms(signature_algorithms::Extension),
     SupportedVersions(supported_versions::Extension),
     KeyShare(key_share::Extension),
     Others {
@@ -18,6 +24,9 @@ pub enum Extension {
 impl Extension {
     pub fn to_vec(&self) -> Vec<u8> {
         match self {
+            Self::ServerName(_) => unimplemented!(),
+            Self::SupportedGroups(_) => unimplemented!(),
+            Self::SignatureAlgorithms(_) => unimplemented!(),
             Self::SupportedVersions(e) => [
                 &43u16.to_be_bytes(),
                 &(e.len() as u16).to_be_bytes(),
@@ -43,59 +52,53 @@ impl Extension {
     }
 
     pub(crate) fn len(&self) -> usize {
-        match self {
-            Self::SupportedVersions(e) => 2 + 2 + e.len(),
-            Self::KeyShare(e) => 2 + 2 + e.len(),
-            Self::Others {
-                extension_type: _,
-                extension_data,
-            } => 2 + 2 + extension_data.len(),
-        }
+        2 + 2
+            + match self {
+                Self::ServerName(e) => e.len(),
+                Self::SupportedGroups(e) => e.len(),
+                Self::SignatureAlgorithms(e) => e.len(),
+                Self::SupportedVersions(e) => e.len(),
+                Self::KeyShare(e) => e.len(),
+                Self::Others {
+                    extension_type: _,
+                    extension_data,
+                } => extension_data.len(),
+            }
     }
 }
 
-macro_rules! try_read {
-    ($expr:expr, $extensions:ident, $read_length:ident) => {
-        match $expr {
-            Err(err) => match err.kind() {
-                std::io::ErrorKind::UnexpectedEof => return Ok(($extensions, $read_length)),
-                _ => return Err(err).map_err(Into::into),
-            },
-            Ok(x) => x,
-        }
-    };
-}
-
-pub fn read_extensions(
-    input: &mut Cursor<&[u8]>,
-) -> Result<(Vec<Extension>, usize), ReadExtensionsError> {
-    let mut read_length = 0usize;
-
+pub fn read_extensions(input: &mut Cursor<&[u8]>) -> Result<Vec<Extension>, ReadExtensionsError> {
     let mut extensions = Vec::new();
 
-    let _total_length = try_read!(input.read_u16::<NetworkEndian>(), extensions, read_length);
-    read_length += 2;
+    let length = input.read_u16::<NetworkEndian>()? as usize;
+    let mut sum_of_length = 0;
 
-    loop {
-        let mut this_read_length = 0usize;
-        let extension_type = try_read!(input.read_u16::<NetworkEndian>(), extensions, read_length);
-        this_read_length += 2;
+    while sum_of_length < length {
+        let extension = read_extension(input)?;
+        sum_of_length += extension.len();
+        extensions.push(extension);
+    }
+    Ok(extensions)
+}
 
-        let extension_data = {
-            let length = try_read!(input.read_u16::<NetworkEndian>(), extensions, read_length);
-            this_read_length += 2;
-            let mut buf = vec![0; length as usize];
-            try_read!(input.read_exact(&mut buf), extensions, read_length);
-            this_read_length += length as usize;
-            buf
-        };
+fn read_extension(input: &mut Cursor<&[u8]>) -> Result<Extension, ReadExtensionsError> {
+    let extension_type = input.read_u16::<NetworkEndian>()?;
 
-        extensions.push(Extension::Others {
+    let extension_data = {
+        let length = input.read_u16::<NetworkEndian>()?;
+        let mut buf = vec![0; length as usize];
+        input.read_exact(&mut buf)?;
+        buf
+    };
+    let extension = match extension_type {
+        0 => server_name::parse_from_bytes(&extension_data)?,
+        10 => supported_groups::parse_from_bytes(&extension_data)?,
+        _ => Extension::Others {
             extension_type,
             extension_data,
-        });
-        read_length += this_read_length;
-    }
+        },
+    };
+    Ok(extension)
 }
 
 #[derive(thiserror::Error, Debug)]
