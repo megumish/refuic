@@ -2,6 +2,7 @@ use std::io::{Cursor, Read};
 
 pub mod alpn;
 pub mod key_share;
+pub mod psk_key_exchange_modes;
 pub mod server_name;
 pub mod signature_algorithms;
 pub mod supported_groups;
@@ -17,6 +18,7 @@ pub enum Extension {
     SignatureAlgorithms(signature_algorithms::Extension),
     Alpn(alpn::Extension),
     SupportedVersions(supported_versions::Extension),
+    PskKeyExchangeModes(psk_key_exchange_modes::Extension),
     KeyShare(key_share::Extension),
     Others {
         extension_type: u16,
@@ -57,6 +59,12 @@ impl Extension {
                 &e.to_vec()[..],
             ]
             .concat(),
+            Self::PskKeyExchangeModes(e) => [
+                &45u16.to_be_bytes(),
+                &(e.len() as u16).to_be_bytes(),
+                &e.to_vec()[..],
+            ]
+            .concat(),
             Self::KeyShare(e) => [
                 &51u16.to_be_bytes(),
                 &(e.len() as u16).to_be_bytes(),
@@ -83,6 +91,7 @@ impl Extension {
                 Self::SignatureAlgorithms(e) => e.len(),
                 Self::Alpn(e) => e.len(),
                 Self::SupportedVersions(e) => e.len(),
+                Self::PskKeyExchangeModes(e) => e.len(),
                 Self::KeyShare(e) => e.len(),
                 Self::Others {
                     extension_type: _,
@@ -126,6 +135,7 @@ fn read_extension(
         10 => supported_groups::parse_from_bytes(&extension_data)?,
         13 => signature_algorithms::parse_from_bytes(&extension_data)?,
         16 => alpn::parse_from_bytes(&extension_data)?,
+        45 => psk_key_exchange_modes::parse_from_bytes(&extension_data)?,
         51 => key_share::parse_from_bytes(&extension_data, target_endpoint_type)?,
         _ => Extension::Others {
             extension_type,
