@@ -32,7 +32,12 @@ impl Extension {
                 &e.to_vec()[..],
             ]
             .concat(),
-            Self::SupportedGroups(_) => unimplemented!(),
+            Self::SupportedGroups(e) => [
+                &10u16.to_be_bytes(),
+                &(e.len() as u16).to_be_bytes(),
+                &e.to_vec()[..],
+            ]
+            .concat(),
             Self::SignatureAlgorithms(_) => unimplemented!(),
             Self::Alpn(_) => unimplemented!(),
             Self::SupportedVersions(e) => [

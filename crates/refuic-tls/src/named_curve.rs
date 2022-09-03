@@ -14,8 +14,14 @@ pub enum NamedCurve {
 impl NamedCurve {
     pub fn to_bytes(&self) -> [u8; 2] {
         match self {
+            Self::Deprecated(x) => x.to_be_bytes(),
+            Self::Reserved(x) => x.to_be_bytes(),
+            Self::Secp256r1 => [0x00, 0x17],
+            Self::Secp384rl => [0x00, 0x18],
+            Self::Secp521r1 => [0x00, 0x19],
             Self::X25519 => [0x00, 0x1D],
-            _ => unimplemented!(),
+            Self::X448 => [0x00, 0x1E],
+            Self::Others(x) => x.to_be_bytes(),
         }
     }
 
@@ -27,7 +33,9 @@ impl NamedCurve {
         match u {
             0x17 => Self::Secp256r1,
             0x18 => Self::Secp384rl,
+            0x19 => Self::Secp521r1,
             0x1d => Self::X25519,
+            0x1e => Self::X448,
             x => Self::Others(x),
         }
     }

@@ -20,6 +20,18 @@ impl Extension {
     pub fn named_curves(&self) -> &Vec<NamedCurve> {
         &self.named_curves
     }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        [
+            &(self.length as u16).to_be_bytes()[..],
+            &self
+                .named_curves
+                .iter()
+                .flat_map(|nc| nc.to_bytes().to_vec())
+                .collect::<Vec<u8>>(),
+        ]
+        .concat()
+    }
 }
 
 pub fn parse_from_bytes(bytes: &[u8]) -> Result<super::Extension, ReadExtensionsError> {
@@ -65,6 +77,7 @@ mod tests {
                 length: 6,
             })
         );
+        assert_eq!(extension.to_vec(), bytes);
         Ok(())
     }
 }
