@@ -2,6 +2,7 @@ use std::io::{Cursor, Read};
 
 use byteorder::ReadBytesExt;
 use rand::{rngs::StdRng, RngCore, SeedableRng};
+use refuic_common::EndpointType;
 
 use crate::{
     cipher_suite::CipherSuite,
@@ -148,7 +149,7 @@ pub fn parse_from_bytes(bytes: &[u8]) -> Result<ServerHelloData, HandshakeTransf
 
     let legacy_compression_method = input.read_u8()?;
 
-    let extensions = read_extensions(&mut input)?;
+    let extensions = read_extensions(&mut input, &EndpointType::Server)?;
 
     Ok(ServerHelloData {
         length,

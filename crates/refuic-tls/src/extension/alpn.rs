@@ -58,13 +58,15 @@ pub fn parse_from_bytes(bytes: &[u8]) -> Result<super::Extension, ReadExtensions
 mod tests {
     use std::io::Cursor;
 
+    use refuic_common::EndpointType;
+
     use crate::extension::{read_extension, Extension};
 
     #[test]
     fn read_extension_alpn() -> Result<(), anyhow::Error> {
         let bytes = include_bytes!("./test_data/xargs_org/client_initial_0/alpn.bin");
         let mut input = Cursor::new(&bytes[..]);
-        let extension = read_extension(&mut input)?;
+        let extension = read_extension(&mut input, &EndpointType::Client)?;
         assert_eq!(
             extension,
             Extension::Alpn(super::Extension {

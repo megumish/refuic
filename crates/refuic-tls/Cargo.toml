@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 refuic-crypto = { path = "../refuic-crypto" }
+refuic-common = { path = "../refuic-common" }
 
 byteorder = "1.4"
 thiserror = "1.0"

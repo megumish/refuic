@@ -8,6 +8,7 @@ pub mod supported_groups;
 pub mod supported_versions;
 
 use byteorder::{NetworkEndian, ReadBytesExt};
+use refuic_common::EndpointType;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Extension {
@@ -91,21 +92,27 @@ impl Extension {
     }
 }
 
-pub fn read_extensions(input: &mut Cursor<&[u8]>) -> Result<Vec<Extension>, ReadExtensionsError> {
+pub fn read_extensions(
+    input: &mut Cursor<&[u8]>,
+    target_endpoint_type: &EndpointType,
+) -> Result<Vec<Extension>, ReadExtensionsError> {
     let mut extensions = Vec::new();
 
     let length = input.read_u16::<NetworkEndian>()? as usize;
     let mut sum_of_length = 0;
 
     while sum_of_length < length {
-        let extension = read_extension(input)?;
+        let extension = read_extension(input, target_endpoint_type)?;
         sum_of_length += extension.len();
         extensions.push(extension);
     }
     Ok(extensions)
 }
 
-fn read_extension(input: &mut Cursor<&[u8]>) -> Result<Extension, ReadExtensionsError> {
+fn read_extension(
+    input: &mut Cursor<&[u8]>,
+    target_endpoint_type: &EndpointType,
+) -> Result<Extension, ReadExtensionsError> {
     let extension_type = input.read_u16::<NetworkEndian>()?;
 
     let extension_data = {
@@ -119,6 +126,7 @@ fn read_extension(input: &mut Cursor<&[u8]>) -> Result<Extension, ReadExtensions
         10 => supported_groups::parse_from_bytes(&extension_data)?,
         13 => signature_algorithms::parse_from_bytes(&extension_data)?,
         16 => alpn::parse_from_bytes(&extension_data)?,
+        51 => key_share::parse_from_bytes(&extension_data, target_endpoint_type)?,
         _ => Extension::Others {
             extension_type,
             extension_data,
