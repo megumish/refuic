@@ -135,6 +135,7 @@ fn read_extension(
         10 => supported_groups::parse_from_bytes(&extension_data)?,
         13 => signature_algorithms::parse_from_bytes(&extension_data)?,
         16 => alpn::parse_from_bytes(&extension_data)?,
+        43 => supported_versions::parse_from_bytes(&extension_data, target_endpoint_type)?,
         45 => psk_key_exchange_modes::parse_from_bytes(&extension_data)?,
         51 => key_share::parse_from_bytes(&extension_data, target_endpoint_type)?,
         _ => Extension::Others {

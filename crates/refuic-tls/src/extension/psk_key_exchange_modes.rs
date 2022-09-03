@@ -80,7 +80,7 @@ mod tests {
     use crate::extension::{psk_key_exchange_modes::PskKeyExchangeMode, read_extension, Extension};
 
     #[test]
-    fn read_extension_server_name() -> Result<(), anyhow::Error> {
+    fn read_extension_psk_key_exchange_modes() -> Result<(), anyhow::Error> {
         let bytes =
             include_bytes!("./test_data/xargs_org/client_initial_0/psk_key_exchange_modes.bin");
         let mut input = Cursor::new(&bytes[..]);
