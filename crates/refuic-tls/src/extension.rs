@@ -44,7 +44,12 @@ impl Extension {
                 &e.to_vec()[..],
             ]
             .concat(),
-            Self::Alpn(_) => unimplemented!(),
+            Self::Alpn(e) => [
+                &16u16.to_be_bytes(),
+                &(e.len() as u16).to_be_bytes(),
+                &e.to_vec()[..],
+            ]
+            .concat(),
             Self::SupportedVersions(e) => [
                 &43u16.to_be_bytes(),
                 &(e.len() as u16).to_be_bytes(),
