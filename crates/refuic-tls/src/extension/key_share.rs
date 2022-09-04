@@ -28,13 +28,10 @@ pub struct KeyShareEntry {
 }
 
 impl Extension {
-    pub fn new_x25519_server(key: &[u8]) -> super::Extension {
+    pub fn new_server_from_entry(key_share_entry: &KeyShareEntry) -> super::Extension {
         super::Extension::KeyShare(Self::Server {
-            entry: KeyShareEntry {
-                named_group: NamedCurve::X25519,
-                key: key.to_vec(),
-            },
-            length: 2 + 2 + key.len(),
+            entry: key_share_entry.clone(),
+            length: 2 + key_share_entry.named_group.len() + 2 + key_share_entry.key.len(),
         })
     }
 
@@ -78,6 +75,10 @@ impl Extension {
 impl KeyShareEntry {
     pub fn named_group(&self) -> &NamedCurve {
         &self.named_group
+    }
+
+    pub fn key(&self) -> &[u8] {
+        &self.key
     }
 
     pub fn new(named_group: &NamedCurve) -> (Self, Vec<u8>) {

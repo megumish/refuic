@@ -8,7 +8,7 @@ use refuic_frame::frame::{self, FrameRfc9000, ParseFrameError};
 use refuic_packet::{
     long::{
         self,
-        initial::{ClientInitialPacket, UnprotectError},
+        initial::{ClientInitialPacket, ServerInitialPacket, UnprotectError},
     },
     LongHeaderPacket,
 };
@@ -28,7 +28,6 @@ mod crypto_kit;
 pub mod implementation;
 mod repository;
 mod socket;
-mod space;
 mod transport_parameter;
 
 pub struct Endpoint<Conn, Crypto, App, Trans, S>
@@ -67,7 +66,6 @@ where
                 (buf[0..length].to_owned(), addr)
             };
             buf.extend(new_buf);
-            tracing::debug!("{:x?}", buf);
 
             match long::parse_from_bytes(&buf, &QuicVersion::Rfc9000) {
                 Err(long::ParseFromBytesError::NotLongPacket) => { /* do nothing */ }
@@ -79,16 +77,24 @@ where
                 Ok(p) => {
                     tracing::debug!("recv long packet");
                     if p.version() == &QuicVersion::Rfc9000 {
-                        match self.is_after_handshake_done(p.destination_connection_id()) {
+                        match self.is_after_handshake_done_v1(p.destination_connection_id()) {
                             Ok(true) => unimplemented!("reach after handshake done"),
                             Ok(false) => { /* do nothing */ }
-                            Err(IsAfterHandshakeDoneError::RepositoryError(
-                                RepositoryError::NotFound,
-                            )) => { /* do nothing */ }
+                            Err(JudgeError::RepositoryError(RepositoryError::NotFound)) => { /* do nothing */
+                            }
+                            Err(x) => return Err(x).map_err(Into::into),
+                        }
+                        match self.is_sent_server_hello(p.destination_connection_id()) {
+                            Ok(true) => unimplemented!("reach after server hello sent"),
+                            Ok(false) => { /* do nothing */ }
+                            Err(JudgeError::RepositoryError(RepositoryError::NotFound)) => { /* do nothing */
+                            }
                             Err(x) => return Err(x).map_err(Into::into),
                         }
                         match self.hello_v1(p.destination_connection_id(), &p, &socket_address) {
-                            Err(HelloError::NotInitialPacket) => { /* do nothing */ }
+                            Err(HelloError::NotInitialPacket) => {
+                                tracing::debug!("but not initial packet")
+                            }
                             Err(HelloError::UnexpectedEnd) => continue,
                             Err(HelloError::NoSupportVersion) => {
                                 unimplemented!("recv no support version packet")
@@ -100,6 +106,7 @@ where
                                 continue;
                             }
                         }
+                        unimplemented!("reach otherwise client hello")
                     }
                 }
             }
@@ -108,20 +115,60 @@ where
         }
     }
 
-    fn is_after_handshake_done(
-        &self,
-        connection_id: &[u8],
-    ) -> Result<bool, IsAfterHandshakeDoneError> {
-        let crypto_kit = self.crypto_kit_repository.crypto_kit(connection_id)?;
+    fn is_after_handshake_done_v1(&self, connection_id: &[u8]) -> Result<bool, JudgeError> {
         let connection = self.connection_repository.connection_v1(connection_id)?;
-        Ok(crypto_kit.is_negotiated_cipher_suite()
-            & crypto_kit.is_negotiated_server_name()
-            & crypto_kit.is_negotiated_named_curve()
-            & crypto_kit.is_negotiated_signature_algorithm()
-            & crypto_kit.is_negotiated_client_key_share()
-            & crypto_kit.is_negotiated_psk_key_exchange_mode()
-            & crypto_kit.is_negotiated_supported_version()
-            & connection.is_acknowlegded_hello())
+        Ok(self.is_sent_server_hello(connection_id)?
+            && connection.is_acknowlegded_server_hello()
+            && connection.is_acknowledged_encrypted_extensions()
+            && connection.is_acknowledged_certificate()
+            && connection.is_acknowledged_certificate_verify()
+            && connection.is_acknowledged_handshake_finished())
+    }
+
+    fn is_sent_server_hello(&self, connection_id: &[u8]) -> Result<bool, JudgeError> {
+        let connection = self.connection_repository.connection_v1(connection_id)?;
+        Ok(self.is_prepared_server_hello(connection_id)?
+            && connection.is_sent_server_hello()
+            && connection.is_sent_encrypted_extensions()
+            && connection.is_sent_certificate()
+            && connection.is_sent_certificate_verify()
+            && connection.is_sent_handshake_finished())
+    }
+
+    // ServerHelloを送信していいかどうかだけでなく、そのあとのHandshakePacketも送っていいのかも
+    // これで判断する
+    fn is_prepared_server_hello(&self, connection_id: &[u8]) -> Result<bool, JudgeError> {
+        tracing::trace!("check prepared server hello");
+        let crypto_kit = self.crypto_kit_repository.crypto_kit(connection_id)?;
+        if !crypto_kit.is_negotiated_cipher_suite() {
+            return Ok(false);
+        }
+        tracing::trace!("ok cipher suite");
+        if !crypto_kit.is_negotiated_server_name() {
+            return Ok(false);
+        }
+        tracing::trace!("ok server name");
+        if !crypto_kit.is_negotiated_named_curve() {
+            return Ok(false);
+        }
+        tracing::trace!("ok named curve");
+        if !crypto_kit.is_negotiated_signature_algorithm() {
+            return Ok(false);
+        }
+        tracing::trace!("ok signature algorithm");
+        if !crypto_kit.is_negotiated_key_shares() {
+            return Ok(false);
+        }
+        tracing::trace!("ok key shares");
+        if !crypto_kit.is_negotiated_psk_key_exchange_mode() {
+            return Ok(false);
+        }
+        tracing::trace!("ok psk key exchange mode");
+        if !crypto_kit.is_negotiated_supported_version() {
+            return Ok(false);
+        }
+        tracing::trace!("ok supported version");
+        Ok(true)
     }
 
     fn hello_v1(
@@ -187,6 +234,7 @@ where
                         }
                     }
                 }
+                FrameRfc9000::Padding => { /* do nothing */ }
                 _ => unimplemented!(),
             }
         }
@@ -204,6 +252,7 @@ where
             Ok(c) => c,
         };
         crypto_kit.updated_client_cipher_suites(cipher_suites);
+        crypto_kit.negotiated_cipher_suite()?;
         self.crypto_kit_repository
             .update(connection_id, &crypto_kit)?;
         Ok(())
@@ -240,7 +289,7 @@ where
                     app.updated_client_app_protocols(e.protocol_names());
                 }
                 Extension::SignatureAlgorithms(e) => {
-                    crypto_kit.updated_client_signature_algorithms(e.signature_schemes())
+                    crypto_kit.updated_client_signature_algorithms(e.signature_schemes());
                 }
                 Extension::KeyShare(e) => match e {
                     key_share::Extension::Server {
@@ -250,7 +299,7 @@ where
                         unreachable!("reading client initial, but found server hello info")
                     }
                     key_share::Extension::Client { entries, length: _ } => {
-                        crypto_kit.updated_client_key_shares(entries)
+                        crypto_kit.updated_client_key_shares(entries);
                     }
                 },
                 Extension::PskKeyExchangeModes(e) => {
@@ -263,14 +312,25 @@ where
                     supported_versions::Extension::Client {
                         versions,
                         length: _,
-                    } => crypto_kit.updated_client_supported_versions(versions),
+                    } => {
+                        crypto_kit.updated_client_supported_versions(versions);
+                    }
                 },
                 Extension::QuicTransportParameters(e) => {
-                    transport_parameter.updated_client_transport_parameters(e.parameters())
+                    transport_parameter.updated_client_transport_parameters(e.parameters());
                 }
                 _ => { /* do nothing */ }
             }
         }
+        // 含まれてないケースも考慮して、ここでネゴシエーションの整合性処理を行う
+        crypto_kit.negotiated_server_name()?;
+        crypto_kit.negotiated_named_curve()?;
+        app.negotiated_app_protocol()?;
+        crypto_kit.negotiated_signature_algorithm()?;
+        crypto_kit.negotiated_key_shares()?;
+        crypto_kit.negotiated_psk_key_exchange_mode()?;
+        crypto_kit.negotiated_supported_version()?;
+        transport_parameter.negotiated_transport_parameters();
         self.crypto_kit_repository
             .update(connection_id, &crypto_kit)?;
         self.transport_parameter_repository
@@ -281,10 +341,15 @@ where
 
     fn send_server_hello_v1(
         &self,
-        _socket_address: &SocketAddr,
-        _initial_destination_connection_id: &[u8],
-    ) -> Result<(), PushEventError> {
-        todo!()
+        socket_address: &SocketAddr,
+        destination_connection_id: &[u8],
+    ) -> Result<(), SendError> {
+        if !self.is_prepared_server_hello(destination_connection_id)? {
+            // 準備ができていないのでまだ送信しない
+            return Ok(());
+        }
+        tracing::debug!("send server hello");
+        Ok(())
     }
 
     fn server_hello_v1(
@@ -308,7 +373,7 @@ pub enum RecvError {
     #[error("socket error")]
     SocketError(#[from] socket::RecvError),
     #[error("is after handshake done error")]
-    IsAfterHandshakeDoneError(#[from] IsAfterHandshakeDoneError),
+    IsAfterHandshakeDoneError(#[from] JudgeError),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -324,8 +389,8 @@ pub enum HelloError {
     UnprotectError(#[from] UnprotectError),
     #[error("save packet error")]
     SavePacketError(#[from] SavePacketError),
-    #[error("push event error")]
-    PushEventError(#[from] PushEventError),
+    #[error("send error")]
+    SendError(#[from] SendError),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -336,13 +401,28 @@ pub enum SavePacketError {
     HandshakeTransformError(#[from] HandshakeTransformError),
     #[error("repository error")]
     RepositoryError(#[from] repository::RepositoryError),
+    #[error("crypto kit negotiation error")]
+    CryptoKitNegotiationError(#[from] crypto_kit::NegotiationError),
+    #[error("app negotiation error")]
+    AppNegotiationError(#[from] app::NegotiationError),
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum IsAfterHandshakeDoneError {
+pub enum JudgeError {
     #[error("repository error")]
     RepositoryError(#[from] repository::RepositoryError),
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum PushEventError {}
+pub enum IsAfterHelloError {
+    #[error("repository error")]
+    RepositoryError(#[from] repository::RepositoryError),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum SendError {
+    #[error("judge error")]
+    JudgeError(#[from] JudgeError),
+    #[error("repository error")]
+    RepositoryError(#[from] repository::RepositoryError),
+}

@@ -8,7 +8,7 @@ use crate::{
     extension::{read_extensions, Extension},
 };
 
-use super::HandshakeTransformError;
+use super::{Handshake, HandshakeTransformError};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ClientHelloData {
@@ -18,6 +18,12 @@ pub struct ClientHelloData {
     pub(crate) cipher_suites: Vec<CipherSuite>,
     pub(crate) legacy_compression_method: Vec<u8>,
     pub(crate) extensions: Vec<Extension>,
+}
+
+impl Into<Handshake> for ClientHelloData {
+    fn into(self) -> Handshake {
+        Handshake::ClientHello(self)
+    }
 }
 
 impl ClientHelloData {

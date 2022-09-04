@@ -4,7 +4,7 @@ use refuic_common::EndpointType;
 
 use crate::Endpoint;
 
-use super::std::Socket;
+use super::std_socket::Socket;
 
 mod app;
 mod connection;

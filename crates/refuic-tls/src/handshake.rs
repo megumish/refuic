@@ -19,6 +19,12 @@ pub enum HandshakeTransformError {
     ReadExtensionsError(#[from] crate::extension::ReadExtensionsError),
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Handshake {
+    ClientHello(client_hello::ClientHelloData),
+    ServerHello(server_hello::ServerHelloData),
+}
+
 pub(crate) fn handshake_secret(
     pre_shared_key: &[u8],
     shared_secret: &[u8],

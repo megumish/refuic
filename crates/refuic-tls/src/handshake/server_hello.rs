@@ -6,11 +6,17 @@ use refuic_common::EndpointType;
 
 use crate::{
     cipher_suite::CipherSuite,
-    extension::{key_share, read_extensions, supported_versions, Extension},
+    extension::{
+        key_share::{self, KeyShareEntry},
+        read_extensions,
+        supported_versions::{self, Version},
+        Extension,
+    },
 };
 
-use super::{client_hello::ClientHelloData, HandshakeTransformError};
+use super::{Handshake, HandshakeTransformError};
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ServerHelloData {
     length: usize,
     random: [u8; 32],
@@ -20,8 +26,19 @@ pub struct ServerHelloData {
     extensions: Vec<Extension>,
 }
 
+impl Into<Handshake> for ServerHelloData {
+    fn into(self) -> Handshake {
+        Handshake::ServerHello(self)
+    }
+}
+
 impl ServerHelloData {
-    pub fn new(client_hello_data: &ClientHelloData, key: &[u8]) -> Self {
+    pub fn new(
+        cipher_suite: &CipherSuite,
+        legacy_session_id: &[u8],
+        server_key_share_entry: &KeyShareEntry,
+        supported_version: &Version,
+    ) -> Self {
         let random = {
             let mut random_generator = StdRng::from_entropy();
             let mut buf = [0; 32];
@@ -29,12 +46,12 @@ impl ServerHelloData {
             buf
         };
 
-        let cipher_suite = select_cipher_suite(&client_hello_data.cipher_suites);
+        let cipher_suite = cipher_suite.clone();
 
         let length = 2 // length of legacy version
           + 32 // length of random
           + 1 // length of length of legacy session id echo
-          + client_hello_data.legacy_session_id.len()
+          + legacy_session_id.len()
           + 2 // length of cipher suite
           + 1 // length of legacy compression method
           + 2 // length of extensions
@@ -43,15 +60,19 @@ impl ServerHelloData {
         let mut this = Self {
             length,
             random,
-            legacy_session_id_echo: client_hello_data.legacy_session_id.to_owned(),
+            legacy_session_id_echo: legacy_session_id.to_owned(),
             cipher_suite,
             legacy_compression_method: 0,
             extensions: Vec::new(),
         };
 
         // add default extensions
-        this.add_extension(supported_versions::Extension::new_only_tls13_server());
-        this.add_extension(key_share::Extension::new_x25519_server(key));
+        this.add_extension(key_share::Extension::new_server_from_entry(
+            server_key_share_entry,
+        ));
+        this.add_extension(supported_versions::Extension::new_server_from_version(
+            supported_version,
+        ));
 
         this
     }
@@ -94,13 +115,6 @@ impl ServerHelloData {
     pub fn cipher_suite(&self) -> CipherSuite {
         self.cipher_suite.clone()
     }
-}
-
-fn select_cipher_suite(cipher_suites: &Vec<CipherSuite>) -> CipherSuite {
-    cipher_suites
-        .get(0)
-        .expect("cipher suites is empty!")
-        .clone()
 }
 
 pub fn parse_from_bytes(bytes: &[u8]) -> Result<ServerHelloData, HandshakeTransformError> {

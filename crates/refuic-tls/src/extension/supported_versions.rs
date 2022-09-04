@@ -37,9 +37,8 @@ impl Version {
 }
 
 impl Extension {
-    // > This document describes TLS 1.3, which uses the version 0x0304.
-    pub fn new_only_tls13_server() -> super::Extension {
-        super::Extension::SupportedVersions(Self::Server(Version::Tls1_3))
+    pub fn new_server_from_version(version: &Version) -> super::Extension {
+        super::Extension::SupportedVersions(Self::Server(version.clone()))
     }
 
     pub fn to_vec(&self) -> Vec<u8> {

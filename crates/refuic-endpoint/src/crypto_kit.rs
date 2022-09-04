@@ -4,6 +4,7 @@ use refuic_tls::{
         key_share::KeyShareEntry, psk_key_exchange_modes::PskKeyExchangeMode,
         server_name::ServerName, supported_versions::Version as TlsVersion,
     },
+    handshake::{client_hello::ClientHelloData, Handshake},
     named_curve::NamedCurve,
     signature_scheme::SignatureScheme,
 };
@@ -43,6 +44,8 @@ pub struct CryptoKit {
 
     client_supported_versions: Vec<TlsVersion>,
     supported_version: Option<TlsVersion>,
+
+    handshake_list: Vec<Handshake>,
 }
 
 impl CryptoKit {
@@ -89,13 +92,10 @@ impl CryptoKit {
     }
     pub(crate) fn negotiated_server_name(&mut self) -> Result<(), NegotiationError> {
         for client_server_name in &self.client_server_names {
-            for server_name in &self.certificate_server_names {
-                if client_server_name.name() == server_name {
-                    self.server_name = Some(server_name.clone());
-                    self.client_server_names = Vec::new();
-                    return Ok(());
-                }
-            }
+            // 一番最初の名前を自分の名前としてとる
+            self.server_name = Some(client_server_name.name().clone());
+            self.client_server_names = Vec::new();
+            return Ok(());
         }
         Err(NegotiationError::NoCertificateServerName)
     }
@@ -164,7 +164,7 @@ impl CryptoKit {
             Err(NegotiationError::NoSupportClientKeyShare)
         }
     }
-    pub(crate) fn is_negotiated_client_key_share(&self) -> bool {
+    pub(crate) fn is_negotiated_key_shares(&self) -> bool {
         self.client_key_shares.is_empty()
             && self.client_key_share.is_some()
             && self.server_key_share.is_some()
@@ -177,13 +177,11 @@ impl CryptoKit {
     ) {
         self.client_psk_key_exchange_modes = client_psk_key_exchange_modes.to_owned();
     }
-    pub(crate) fn updated_psk_key_exchange_mode(
-        &mut self,
-        psk_key_exchange_mode: PskKeyExchangeMode,
-    ) {
-        self.psk_key_exchange_mode = Some(psk_key_exchange_mode);
-    }
     pub(crate) fn negotiated_psk_key_exchange_mode(&mut self) -> Result<(), NegotiationError> {
+        if self.client_psk_key_exchange_modes.is_empty() {
+            self.psk_key_exchange_mode = Some(PskKeyExchangeMode::PskKeyWithDhe);
+            return Ok(());
+        }
         for client_psk_key_exchange_mode in &self.client_psk_key_exchange_modes {
             for server_psk_key_exchange_mode in server_psk_key_exchange_modes() {
                 if client_psk_key_exchange_mode == &server_psk_key_exchange_mode {
@@ -204,9 +202,6 @@ impl CryptoKit {
         client_supported_versions: &[TlsVersion],
     ) {
         self.client_supported_versions = client_supported_versions.to_owned();
-    }
-    pub(crate) fn updated_supported_version(&mut self, supported_version: &TlsVersion) {
-        self.supported_version = Some(supported_version.clone());
     }
     pub(crate) fn negotiated_supported_version(&mut self) -> Result<(), NegotiationError> {
         for client_suported_version in &self.client_supported_versions {

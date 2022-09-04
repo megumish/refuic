@@ -72,6 +72,7 @@ impl FrameRfc9000 {
                 let frame_type = f.frame_type();
                 frame_type.len() + f.vec_len()
             }
+            Self::Padding => 1,
             _ => unimplemented!(),
         }
     }
@@ -86,6 +87,7 @@ pub fn parse_from_bytes_v1(bytes: &[u8]) -> Result<Vec<FrameRfc9000>, ParseFrame
         let frame_type = input.read_var_int()?;
         let frame = match frame_type.u64() {
             6 => FrameRfc9000::Crypto(read_crypto_frame(&mut input)?),
+            0 => FrameRfc9000::Padding,
             _ => unimplemented!(),
         };
         sum_of_length += frame_type.len() + frame.vec_len();

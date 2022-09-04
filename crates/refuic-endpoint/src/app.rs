@@ -40,8 +40,8 @@ impl AppData {
 }
 
 // もっと置くに適切な場所があるかもしれない
-fn server_app_protocols() -> [Vec<u8>; 1] {
-    [b"ping/1.0".to_vec()]
+fn server_app_protocols() -> [Vec<u8>; 2] {
+    [b"ping/1.0".to_vec(), b"h3".to_vec()]
 }
 
 #[derive(thiserror::Error, Debug)]
