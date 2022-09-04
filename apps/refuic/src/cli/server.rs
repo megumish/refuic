@@ -1,6 +1,11 @@
-use std::net::UdpSocket;
+use std::{
+    net::{SocketAddr, UdpSocket},
+    str::FromStr,
+    sync::Arc,
+};
 
 use clap::Parser;
+use refuic_endpoint::{implementation::hash_map::HashMapEndpoint, Endpoint};
 use refuic_tls::signature_scheme::SignatureScheme;
 use x509_cert::der::Decode;
 
@@ -12,8 +17,6 @@ pub struct Cli {
 
 impl Cli {
     pub fn run(self) -> Result<(), anyhow::Error> {
-        let _socket = UdpSocket::bind(self.address)?;
-
         let certificate_bytes = include_bytes!("./cacert.der");
 
         // PEM形式だとなぜか読み込めないので、DER形式に変換したものを使う
@@ -21,6 +24,8 @@ impl Cli {
         let _cert_signature_scheme =
             SignatureScheme::from_oid(&certificate.signature_algorithm.oid).unwrap();
         let _cert_signature = certificate.signature.as_bytes().unwrap();
+        let mut server = HashMapEndpoint::new_server(SocketAddr::from_str(&self.address)?);
+        server.recv().unwrap();
         // {
         //     let mut buf = vec![0; 1200];
         //     let (_, peer_addr) = socket.recv_from(&mut buf)?;

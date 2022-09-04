@@ -1,6 +1,8 @@
 use std::io::{Cursor, Read};
 
 use byteorder::{NetworkEndian, ReadBytesExt};
+use ed25519_dalek::Keypair;
+use rand::{rngs::StdRng, SeedableRng};
 use refuic_common::EndpointType;
 
 use crate::named_curve::NamedCurve;
@@ -70,6 +72,39 @@ impl Extension {
             Self::Server { entry: _, length } => 2 + length,
             Self::Client { entries: _, length } => 2 + length,
         }
+    }
+}
+
+impl KeyShareEntry {
+    pub fn named_group(&self) -> &NamedCurve {
+        &self.named_group
+    }
+
+    pub fn new(named_group: &NamedCurve) -> (Self, Vec<u8>) {
+        let mut random_generator = StdRng::from_entropy();
+        let (key, private_key) = match named_group {
+            NamedCurve::Deprecated(_) => todo!(),
+            NamedCurve::Reserved(_) => todo!(),
+            NamedCurve::Secp256r1 => todo!(),
+            NamedCurve::Secp384rl => todo!(),
+            NamedCurve::Secp521r1 => todo!(),
+            NamedCurve::X25519 => {
+                let keypair: Keypair = Keypair::generate(&mut random_generator);
+                (
+                    keypair.public.as_bytes().to_vec(),
+                    keypair.secret.as_bytes().to_vec(),
+                )
+            }
+            NamedCurve::X448 => todo!(),
+            NamedCurve::Others(_) => todo!(),
+        };
+        (
+            Self {
+                named_group: named_group.clone(),
+                key,
+            },
+            private_key,
+        )
     }
 }
 

@@ -12,8 +12,9 @@ refuic-frame = { path = "../refuic-frame" }
 refuic-tls = { path = "../refuic-tls" }
 
 thiserror = "1.0"
-tokio = { version = "1.0", features = ["net"] }
 async-trait = "0.1"
+tracing = "0.1"
+tracing-subscriber = "0.3"
 
 [dev-dependencies]
 anyhow = "1.0"

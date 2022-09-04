@@ -11,7 +11,8 @@ refuic-common = { path = "../refuic-common" }
 
 byteorder = "1.4"
 thiserror = "1.0"
-rand = { version = "0.8", features = ["std_rng"] }
+rand = "0.7"
+ed25519-dalek = "1.0"
 spki = "0.6"
 
 [dev-dependencies]

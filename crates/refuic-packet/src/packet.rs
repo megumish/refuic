@@ -22,7 +22,7 @@ pub fn parse_from_bytes(buf: &[u8]) -> Result<Packet, PacketReadError> {
 
     let first_byte = input.read_u8()?;
 
-    let header_form = if (first_byte & 0b1000_0000) == 1 {
+    let header_form = if ((first_byte & 0b1000_0000) >> 7) == 1 {
         HeaderForm::Long
     } else {
         HeaderForm::Short

@@ -56,6 +56,12 @@ impl Extension {
     }
 }
 
+impl ServerName {
+    pub fn name(&self) -> &Vec<u8> {
+        &self.host_name
+    }
+}
+
 pub fn parse_from_bytes(bytes: &[u8]) -> Result<super::Extension, ReadExtensionsError> {
     let mut input = Cursor::new(bytes);
     let (server_names, length) = {

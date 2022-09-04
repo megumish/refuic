@@ -29,6 +29,14 @@ impl Frame {
         .concat()
     }
 
+    pub fn vec_len(&self) -> usize {
+        VarInt::try_new(self.offset as u64).unwrap().len()
+            + VarInt::try_new(self.crypto_data.len() as u64)
+                .unwrap()
+                .len()
+            + self.crypto_data.len()
+    }
+
     pub fn crypto_data(&self) -> &Vec<u8> {
         &self.crypto_data
     }

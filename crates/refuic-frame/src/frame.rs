@@ -61,19 +61,37 @@ impl FrameRfc9000 {
             _ => unimplemented!(),
         }
     }
+
+    pub fn vec_len(&self) -> usize {
+        match self {
+            Self::Crypto(f) => {
+                let frame_type = VarInt::try_new(6).unwrap();
+                frame_type.len() + f.vec_len()
+            }
+            Self::Ack(f) => {
+                let frame_type = f.frame_type();
+                frame_type.len() + f.vec_len()
+            }
+            _ => unimplemented!(),
+        }
+    }
 }
 
 pub fn parse_from_bytes_v1(bytes: &[u8]) -> Result<Vec<FrameRfc9000>, ParseFrameError> {
+    let length = bytes.len();
     let mut input = Cursor::new(bytes);
     let mut frames = Vec::new();
-    loop {
+    let mut sum_of_length = 0usize;
+    while sum_of_length < length {
         let frame_type = input.read_var_int()?;
         let frame = match frame_type.u64() {
             6 => FrameRfc9000::Crypto(read_crypto_frame(&mut input)?),
             _ => unimplemented!(),
         };
+        sum_of_length += frame_type.len() + frame.vec_len();
         frames.push(frame);
     }
+    Ok(frames)
 }
 
 #[derive(thiserror::Error, Debug)]

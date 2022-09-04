@@ -10,6 +10,7 @@ refuic-packet = { path = "../../crates/refuic-packet" }
 refuic-frame = { path  = "../../crates/refuic-frame" }
 refuic-common = { path = "../../crates/refuic-common" }
 refuic-tls = { path = "../../crates/refuic-tls" }
+refuic-endpoint = { path = "../../crates/refuic-endpoint"}
 
 clap = { version = "3.2.16", features = ["derive"] }
 thiserror = "1.0"
@@ -21,3 +22,4 @@ rand = "0.7"
 x509-cert = "0.1"
 der = { version = "0.6", features = ["pem"] }
 anyhow = "1.0"
+tokio = { version ="1.0", features = ["rt", "rt-multi-thread"] }

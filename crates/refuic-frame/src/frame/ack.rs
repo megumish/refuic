@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 use refuic_common::var_int::VarInt;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -70,11 +72,29 @@ impl Frame {
         }
         buf
     }
+
+    pub fn vec_len(&self) -> usize {
+        VarInt::try_new(self.largest_acknowledged as u64)
+            .unwrap()
+            .len()
+            + self.ack_delay.len()
+            + VarInt::try_new(self.ack_range.len() as u64).unwrap().len()
+            + self.first_ack_range.len()
+            + self
+                .ack_range
+                .iter()
+                .map(AckRange::vec_len)
+                .fold(0, Add::add)
+    }
 }
 
 impl AckRange {
     pub fn to_vec(&self) -> Vec<u8> {
         [self.gap.to_vec(), self.ack_range_length.to_vec()].concat()
+    }
+
+    pub fn vec_len(&self) -> usize {
+        self.gap.len() + self.ack_range_length.len()
     }
 }
 
