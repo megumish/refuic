@@ -8,19 +8,23 @@ use refuic_frame::frame::{self, FrameRfc9000, ParseFrameError};
 use refuic_packet::{
     long::{
         self,
-        initial::{ClientInitialPacket, ServerInitialPacket, UnprotectError},
+        initial::{
+            ClientInitialPacket, ProtectError, ServerInitialPacket, ServerNewHelloError,
+            UnprotectError,
+        },
     },
+    packet_number::PacketNumber,
     LongHeaderPacket,
 };
 use refuic_tls::{
     cipher_suite::CipherSuite,
     extension::{key_share, supported_versions, Extension},
-    handshake::HandshakeTransformError,
+    handshake::{client_hello::ClientHelloData, HandshakeTransformError},
 };
 use socket::Socket;
 use transport_parameter::{TransportParameters, TransportParametersRepository};
 
-use crate::repository::RepositoryError;
+use crate::{connection::ConnectionRfc9000, repository::RepositoryError};
 
 mod app;
 mod connection;
@@ -204,7 +208,11 @@ where
             Ok(p) => p,
         };
         self.save_client_initial_v1(&client_initial)?;
-        self.send_server_hello_v1(socket_address, connection_id)?;
+        self.send_server_hello_v1(
+            socket_address,
+            connection_id,
+            client_initial.source_connection_id(),
+        )?;
         // protectを外した後ではなく、元のパケットの大きさを返す
         Ok(original_length)
     }
@@ -225,6 +233,10 @@ where
                             self.save_cipher_suites_v1(
                                 cipher_suites,
                                 client_initial.destination_connection_id(),
+                            )?;
+                            self.save_client_hello_data_v1(
+                                client_initial.destination_connection_id(),
+                                &client_hello_data,
                             )?;
                             let extensions = client_hello_data.extensions();
                             self.save_tls_extensions_v1(
@@ -253,6 +265,18 @@ where
         };
         crypto_kit.updated_client_cipher_suites(cipher_suites);
         crypto_kit.negotiated_cipher_suite()?;
+        self.crypto_kit_repository
+            .update(connection_id, &crypto_kit)?;
+        Ok(())
+    }
+
+    fn save_client_hello_data_v1(
+        &self,
+        connection_id: &[u8],
+        client_hello_data: &ClientHelloData,
+    ) -> Result<(), SavePacketError> {
+        let mut crypto_kit = self.crypto_kit_repository.crypto_kit(connection_id)?;
+        crypto_kit.added_handshake(client_hello_data.clone().into());
         self.crypto_kit_repository
             .update(connection_id, &crypto_kit)?;
         Ok(())
@@ -342,13 +366,60 @@ where
     fn send_server_hello_v1(
         &self,
         socket_address: &SocketAddr,
-        destination_connection_id: &[u8],
+        client_destination_connection_id: &[u8],
+        client_source_connection_id: &[u8],
     ) -> Result<(), SendError> {
-        if !self.is_prepared_server_hello(destination_connection_id)? {
+        if !self.is_prepared_server_hello(client_destination_connection_id)? {
             // 準備ができていないのでまだ送信しない
             return Ok(());
         }
         tracing::debug!("send server hello");
+        let mut connection = match self
+            .connection_repository
+            .connection_v1(client_destination_connection_id)
+        {
+            Err(RepositoryError::NotFound) => ConnectionRfc9000::new(),
+            Err(e) => return Err(e).map_err(Into::into),
+            Ok(c) => c,
+        };
+        let mut crypto_kit = self
+            .crypto_kit_repository
+            .crypto_kit(client_destination_connection_id)?;
+
+        let packet_number = if let Some(pn) = connection.my_initial_packet_number() {
+            pn.clone()
+        } else {
+            PacketNumber::new()
+        };
+
+        let cipher_suite = crypto_kit.cipher_suite().clone().unwrap();
+
+        let server_key_share_entry = crypto_kit.server_key_share().clone().unwrap();
+
+        let supported_version = crypto_kit.supported_version().clone().unwrap();
+
+        let (server_initial, tls_server_hello) = ServerInitialPacket::new_hello(
+            &QuicVersion::Rfc9000,
+            &packet_number,
+            client_destination_connection_id,
+            client_source_connection_id,
+            &cipher_suite,
+            &server_key_share_entry,
+            &supported_version,
+        )?;
+        let _ = self.socket.send_to(
+            &server_initial
+                .protect(client_destination_connection_id)?
+                .to_vec(),
+            socket_address,
+        )?;
+        connection.sent_server_hello();
+        crypto_kit.added_handshake(tls_server_hello.into());
+        self.connection_repository
+            .update_v1(client_destination_connection_id, &connection)?;
+        self.crypto_kit_repository
+            .update(client_source_connection_id, &crypto_kit)?;
+
         Ok(())
     }
 
@@ -425,4 +496,10 @@ pub enum SendError {
     JudgeError(#[from] JudgeError),
     #[error("repository error")]
     RepositoryError(#[from] repository::RepositoryError),
+    #[error("new hello error")]
+    NewHelloError(#[from] ServerNewHelloError),
+    #[error("socket send error")]
+    SocketSendError(#[from] socket::SendError),
+    #[error("packet protection error")]
+    PacketProtectionError(#[from] ProtectError),
 }

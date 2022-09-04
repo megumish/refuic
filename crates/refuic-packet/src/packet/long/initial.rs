@@ -7,8 +7,8 @@ mod endpoint_server;
 mod header_protection;
 mod keys;
 
-pub use endpoint_client::ClientInitialPacket;
-pub use endpoint_server::ServerInitialPacket;
+pub use endpoint_client::{ClientInitialPacket, NewHelloError as ClientNewHelloError};
+pub use endpoint_server::{NewHelloError as ServerNewHelloError, ServerInitialPacket};
 
 use crate::packet_number::PacketNumber;
 
@@ -62,6 +62,10 @@ impl InitialPacketRfc9000 {
 
     fn destination_connection_id<'a>(&'a self) -> &'a Vec<u8> {
         &self.destination_connection_id
+    }
+
+    fn source_connection_id<'a>(&'a self) -> &'a Vec<u8> {
+        &self.source_connection_id
     }
 
     fn type_specific_half_byte(&self) -> u8 {

@@ -28,4 +28,18 @@ impl ConnectionRepository for Repository {
             Err(crate::repository::RepositoryError::NotFound)
         }
     }
+    fn update_v1(
+        &self,
+        connection_id: &[u8],
+        connection: &ConnectionRfc9000,
+    ) -> Result<(), crate::repository::RepositoryError> {
+        let mut inner =
+            self.inner
+                .lock()
+                .or(Err(crate::repository::RepositoryError::InternalError {
+                    description: "Mutex Lock Failed".to_owned(),
+                }))?;
+        let _ = inner.insert(connection_id.to_owned(), connection.clone());
+        Ok(())
+    }
 }

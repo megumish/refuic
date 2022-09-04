@@ -53,6 +53,20 @@ impl CryptoKit {
         Default::default()
     }
 
+    pub fn cipher_suite(&self) -> &Option<CipherSuite> {
+        &self.cipher_suite
+    }
+    pub fn server_key_share(&self) -> &Option<KeyShareEntry> {
+        &self.server_key_share
+    }
+    pub fn supported_version(&self) -> &Option<TlsVersion> {
+        &self.supported_version
+    }
+
+    pub fn added_handshake(&mut self, handshake: Handshake) {
+        self.handshake_list.push(handshake);
+    }
+
     pub(crate) fn updated_client_cipher_suites(&mut self, client_cipher_suites: &[CipherSuite]) {
         self.client_cipher_suites = client_cipher_suites.to_owned();
     }

@@ -57,7 +57,7 @@ impl PacketNumber {
         self.0
     }
 
-    pub(crate) fn next(&self) -> Self {
+    pub fn next(&self) -> Self {
         PacketNumber(self.0 + 1)
     }
 }

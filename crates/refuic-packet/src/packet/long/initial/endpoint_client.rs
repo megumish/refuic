@@ -23,6 +23,12 @@ impl ClientInitialPacket {
         }
     }
 
+    pub fn source_connection_id<'a>(&'a self) -> &'a Vec<u8> {
+        match self {
+            Self::Rfc9000(p) => p.0.source_connection_id(),
+        }
+    }
+
     pub fn new_hello(
         version: &QuicVersion,
         packet_number: &PacketNumber,
