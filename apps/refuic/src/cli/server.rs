@@ -1,11 +1,6 @@
 use std::net::UdpSocket;
 
 use clap::Parser;
-use ed25519_dalek::Keypair;
-use rand::{rngs::StdRng, SeedableRng};
-use refuic_common::{EndpointType, QuicVersion};
-use refuic_frame::frame;
-use refuic_packet::long;
 use refuic_tls::signature_scheme::SignatureScheme;
 use x509_cert::der::Decode;
 
@@ -17,15 +12,15 @@ pub struct Cli {
 
 impl Cli {
     pub fn run(self) -> Result<(), anyhow::Error> {
-        let socket = UdpSocket::bind(self.address)?;
+        let _socket = UdpSocket::bind(self.address)?;
 
         let certificate_bytes = include_bytes!("./cacert.der");
 
         // PEM形式だとなぜか読み込めないので、DER形式に変換したものを使う
         let certificate = x509_cert::Certificate::from_der(certificate_bytes).unwrap();
-        let cert_signature_scheme =
+        let _cert_signature_scheme =
             SignatureScheme::from_oid(&certificate.signature_algorithm.oid).unwrap();
-        let cert_signature = certificate.signature.as_bytes().unwrap();
+        let _cert_signature = certificate.signature.as_bytes().unwrap();
         // {
         //     let mut buf = vec![0; 1200];
         //     let (_, peer_addr) = socket.recv_from(&mut buf)?;

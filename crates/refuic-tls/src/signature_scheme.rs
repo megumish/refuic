@@ -73,7 +73,7 @@ impl SignatureScheme {
             0x080b => SignatureScheme::RsaPssPssSha512,
             0x0201 => SignatureScheme::RsaPkcs1Sha1,
             0x0203 => SignatureScheme::EcdsaSha1,
-            x if x >= 0xfe00 && x <= 0xffff => SignatureScheme::PrivateUse(x),
+            x if x >= 0xfe00 => SignatureScheme::PrivateUse(x),
             x => SignatureScheme::Others(x),
         }
     }

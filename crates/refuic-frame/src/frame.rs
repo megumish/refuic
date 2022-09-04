@@ -1,6 +1,6 @@
 use std::io::Cursor;
 
-use refuic_common::{var_int::VarInt, QuicVersion, ReadVarInt};
+use refuic_common::{var_int::VarInt, ReadVarInt};
 
 use self::crypto::read_crypto_frame;
 

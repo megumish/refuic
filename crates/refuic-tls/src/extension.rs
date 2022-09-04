@@ -3,6 +3,7 @@ use std::io::{Cursor, Read};
 pub mod alpn;
 pub mod key_share;
 pub mod psk_key_exchange_modes;
+pub mod quic_transport_parameters;
 pub mod server_name;
 pub mod signature_algorithms;
 pub mod supported_groups;
@@ -20,6 +21,7 @@ pub enum Extension {
     SupportedVersions(supported_versions::Extension),
     PskKeyExchangeModes(psk_key_exchange_modes::Extension),
     KeyShare(key_share::Extension),
+    QuicTransportParameters(quic_transport_parameters::Extension),
     Others {
         extension_type: u16,
         extension_data: Vec<u8>,
@@ -71,6 +73,7 @@ impl Extension {
                 &e.to_vec()[..],
             ]
             .concat(),
+            Self::QuicTransportParameters(e) => [&57u16.to_be_bytes(), &e.to_vec()[..]].concat(),
             Self::Others {
                 extension_type,
                 extension_data,
@@ -93,6 +96,7 @@ impl Extension {
                 Self::SupportedVersions(e) => e.len(),
                 Self::PskKeyExchangeModes(e) => e.len(),
                 Self::KeyShare(e) => e.len(),
+                Self::QuicTransportParameters(e) => e.len(),
                 Self::Others {
                     extension_type: _,
                     extension_data,
@@ -138,6 +142,7 @@ fn read_extension(
         43 => supported_versions::parse_from_bytes(&extension_data, target_endpoint_type)?,
         45 => psk_key_exchange_modes::parse_from_bytes(&extension_data)?,
         51 => key_share::parse_from_bytes(&extension_data, target_endpoint_type)?,
+        57 => quic_transport_parameters::parse_from_bytes(&extension_data)?,
         _ => Extension::Others {
             extension_type,
             extension_data,

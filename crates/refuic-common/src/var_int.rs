@@ -6,6 +6,7 @@ use byteorder::{NetworkEndian, ReadBytesExt};
 pub struct VarInt(u64);
 
 impl VarInt {
+    pub const MAX: Self = VarInt(u64::MAX);
     pub fn u64(&self) -> u64 {
         if self.0 - (0b00 << 6) < (1 << 6) {
             self.0 - (0b00 << 6)

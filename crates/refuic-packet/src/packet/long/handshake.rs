@@ -23,7 +23,7 @@ pub struct HandshakePacketRfc9000 {
     pub(super) payload: Vec<u8>,
 }
 
-fn server_handshake(
+fn _server_handshake(
     version: &QuicVersion,
     cert_signature_scheme: &SignatureScheme,
     cert_signature: &[u8],

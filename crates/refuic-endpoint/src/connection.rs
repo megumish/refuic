@@ -1,38 +1,23 @@
 use std::net::SocketAddr;
 
-use refuic_tls::{cipher_suite::CipherSuite, named_curve::NamedCurve};
+use crate::{
+    repository::RepositoryError,
+    space::{AppDataSpaceRfc9000, HandshakeSpaceRfc9000, InitialSpaceRfc9000},
+};
 
-use crate::space::{AppDataSpaceRfc9000, HandshakeSpaceRfc9000, InitialSpaceRfc9000};
-
-// trait のエラーハンドリング周りどうすればいいか分からないが、とりあえず他と同じようにenumで定義することにした。
-pub trait ConnectionMap {
+pub trait ConnectionRepository {
     fn new_connection_v1(
         &self,
-        destination_connection_id: &[u8],
+        connection_id: &[u8],
         socket: SocketAddr,
-    ) -> Result<&ConnectionRfc9000, NewConnectionError>;
+    ) -> Result<&ConnectionRfc9000, RepositoryError>;
     fn connection_v1(
         &self,
-        destination_connection_id: &[u8],
-    ) -> Result<Option<&ConnectionRfc9000>, FetchConnectionError>;
-    fn update_cipher_suites_v1(
-        &self,
-        destination_connection_id: &[u8],
-        cipher_suites: &[CipherSuite],
-    ) -> Result<(), UpdateConnectionError>;
-    fn insert_client_named_curves_v1(
-        &self,
-        destination_connection_id: &[u8],
-        named_curves: &[NamedCurve],
-    ) -> Result<(), UpdateConnectionError>;
-}
+        connection_id: &[u8],
+    ) -> Result<Option<&ConnectionRfc9000>, RepositoryError>;
 
-#[derive(thiserror::Error, Debug)]
-pub enum NewConnectionError {}
-#[derive(thiserror::Error, Debug)]
-pub enum FetchConnectionError {}
-#[derive(thiserror::Error, Debug)]
-pub enum UpdateConnectionError {}
+    fn is_acknowlegded_hello(&self, connection_id: &[u8]) -> Result<bool, RepositoryError>;
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ConnectionRfc9000 {
