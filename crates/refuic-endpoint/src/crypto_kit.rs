@@ -111,7 +111,9 @@ impl CryptoKit {
             self.client_server_names = Vec::new();
             return Ok(());
         }
-        Err(NegotiationError::NoCertificateServerName)
+        // client_server_names が空の場合は空の文字列を詰めておく
+        self.server_name = Some(b"".to_vec());
+        Ok(())
     }
     pub(crate) fn is_negotiated_server_name(&self) -> bool {
         self.client_server_names.is_empty() && self.server_name.is_some()

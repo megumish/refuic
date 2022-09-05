@@ -104,9 +104,9 @@ where
                                 unimplemented!("recv no support version packet")
                             }
                             Err(e) => return Err(e).map_err(Into::into),
-                            Ok(packet_length) => {
+                            Ok(_) => {
                                 // bufを消費して次のパケットに進む
-                                let _ = buf.drain(..packet_length);
+                                buf = Vec::new();
                                 continue;
                             }
                         }

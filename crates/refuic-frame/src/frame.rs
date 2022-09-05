@@ -50,6 +50,8 @@ pub enum FrameRfc9000 {
 impl FrameRfc9000 {
     pub fn to_vec(&self) -> Vec<u8> {
         match self {
+            Self::Padding => vec![0x00],
+            Self::Ping => vec![0x01],
             Self::Crypto(f) => {
                 let frame_type = VarInt::try_new(6).unwrap();
                 [frame_type.to_vec(), f.to_vec()].concat()
@@ -64,6 +66,8 @@ impl FrameRfc9000 {
 
     pub fn vec_len(&self) -> usize {
         match self {
+            Self::Padding => 1,
+            Self::Ping => 1,
             Self::Crypto(f) => {
                 let frame_type = VarInt::try_new(6).unwrap();
                 frame_type.len() + f.vec_len()
@@ -72,7 +76,6 @@ impl FrameRfc9000 {
                 let frame_type = f.frame_type();
                 frame_type.len() + f.vec_len()
             }
-            Self::Padding => 1,
             _ => unimplemented!(),
         }
     }
@@ -86,8 +89,9 @@ pub fn parse_from_bytes_v1(bytes: &[u8]) -> Result<Vec<FrameRfc9000>, ParseFrame
     while sum_of_length < length {
         let frame_type = input.read_var_int()?;
         let frame = match frame_type.u64() {
-            6 => FrameRfc9000::Crypto(read_crypto_frame(&mut input)?),
             0 => FrameRfc9000::Padding,
+            1 => FrameRfc9000::Ping,
+            6 => FrameRfc9000::Crypto(read_crypto_frame(&mut input)?),
             _ => unimplemented!(),
         };
         sum_of_length += frame_type.len() + frame.vec_len();
